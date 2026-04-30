@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #d1fae5;
+  --color-primary-dark: #10b981;
+  --color-accent: #059669;
+  --color-bg-sidebar: #f8fafc;
+  --color-surface: #ffffff;
+  --radius-default: 1.5rem;
+  --font-display: "Outfit", sans-serif;
+  --font-sans: "Plus Jakarta Sans", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-[#fcfdfc] text-slate-900 font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.04)];
+  }
+  
+  .neo-button {
+    @apply transition-all duration-300 active:scale-95 hover:shadow-lg hover:-translate-y-0.5;
+  }
+}
