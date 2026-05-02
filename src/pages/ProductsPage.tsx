@@ -3,10 +3,15 @@ import { Search, Plus, Package, CalendarDays, MoreVertical, Activity, Tag, Box }
 import { motion, AnimatePresence } from 'motion/react';
 import ProductRegistrationModal from '../components/products/ProductRegistrationModal';
 import ProductEditModal from '../components/products/ProductEditModal';
-import { MOCK_PRODUCTS, Product } from '../lib/productData';
+import { Product } from '../lib/productData';
+import { useAppStore } from '../store';
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
+  const products = useAppStore(state => state.products);
+  const updateProductStore = useAppStore(state => state.updateProduct);
+  const deleteProductStore = useAppStore(state => state.deleteProduct);
+  const addProductStore = useAppStore(state => state.addProduct);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -20,16 +25,19 @@ export default function ProductsPage() {
   };
 
   const handleUpdateProduct = (updatedProduct: Product) => {
-    setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+    updateProductStore(updatedProduct.id, updatedProduct);
   };
 
   const handleDeleteProduct = (id: number) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
+    deleteProductStore(id);
   };
 
   const handleAddProduct = (newProduct: Product) => {
-    setProducts(prev => [...prev, { ...newProduct, id: Date.now() }]);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, ...productPayload } = newProduct;
+    addProductStore(productPayload);
   };
+
 
   return (
     <div className="space-y-8 pb-12">

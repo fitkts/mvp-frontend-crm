@@ -6,9 +6,10 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   initialStep?: number;
+  onSaveStaff?: (staffData: any) => void;
 }
 
-export default function RegistrationModalStaff({ isOpen, onClose, initialStep }: Props) {
+export default function RegistrationModalStaff({ isOpen, onClose, initialStep, onSaveStaff }: Props) {
   const [step, setStep] = useState(1);
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -459,6 +460,23 @@ export default function RegistrationModalStaff({ isOpen, onClose, initialStep }:
                  <button 
                    onClick={() => {
                      alert('신규 직원이 등록되었습니다.');
+                     if (onSaveStaff) {
+                       onSaveStaff({
+                         id: Math.floor(Math.random() * 1000) + 10,
+                         name: staffName || '신규 직원',
+                         role: role || 'TRAINER',
+                         phone: phone || '010-0000-0000',
+                         email: email || '',
+                         gender: gender || 'M',
+                         birthDate: birthDate || '1990-01-01',
+                         status: 'ACTIVE',
+                         assignedMembers: 0,
+                         revenue: 0,
+                         workHours: 0,
+                         joinDate: hireDate || new Date().toISOString().split('T')[0],
+                         description: description || ''
+                       });
+                     }
                      onClose();
                    }}
                    className="px-6 py-2.5 bg-slate-900 text-white text-sm font-black rounded-xl shadow-lg shadow-slate-200 flex items-center gap-2 hover:bg-slate-800 transition-colors"

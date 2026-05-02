@@ -1,0 +1,194 @@
+// Prisma schema based on project mock data and business logic
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// SQLite database connection
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// =======================
+// STAFF & ADMIN MODELS 
+// =======================
+
+model Staff {
+  id              Int         @id @default(autoincrement())
+  name            String
+  role            String      // e.g. "ADMIN", "MANAGER", "TRAINER"
+  phone           String
+  email           String      @unique
+  gender          String
+  birthDate       String
+  status          String      @default("ACTIVE") // e.g. "ACTIVE", "INACTIVE"
+  revenue         Float       @default(0)
+  workHours       Int         @default(0)
+  joinDate        DateTime
+  description     String?
+
+  // Relations
+  members         Member[]    @relation("AssignedTrainer")
+  payrolls        Payroll[]
+  events          Event[]
+  paymentHistories PaymentHistory[] @relation("PaymentTrainer")
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+// =======================
+// MEMBER MODELS
+// =======================
+
+model Member {
+  id                Int          @id @default(autoincrement())
+  name              String
+  gender            String
+  phone             String
+  email             String?
+  status            String       @default("ACTIVE") // e.g. "ACTIVE", "STOP", "EXPIRED"
+  registrationDate  DateTime
+  lastVisit         DateTime?
+  goal              String?
+  attendance        Int          @default(0)
+  totalPaid         Float        @default(0)
+  recentPurchase    String?
+  remainingSessions Int          @default(0)
+  
+  assignedTrainerId Int?
+  assignedTrainer   Staff?       @relation("AssignedTrainer", fields: [assignedTrainerId], references: [id])
+
+  paymentHistories  PaymentHistory[]
+  lockers           Locker[]
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
+
+// =======================
+// PRODUCT MODELS
+// =======================
+
+model Product {
+  id               Int             @id @default(autoincrement())
+  name             String
+  category         String          // e.g. "PT", "MEMBERSHIP", "PILATES", "LOCKER", "ETC"
+  price            Float
+  sessionCnt       Int             // -1 indicates unlimited
+  validDays        Int
+  isActive         Boolean         @default(true)
+  status           String          @default("ACTIVE") // "ACTIVE" | "INACTIVE"
+  originalPrice    Int?
+  description      String?
+  
+  // Extra options for specific categories
+  ptDuration       String?
+  ptLevel          String?
+  membershipAccess String?         // SQLite JSON array as string: e.g., '["Gym", "Sauna"]'
+  lockerSection    String?
+  lockerSize       String?
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+// =======================
+// PAYMENT & FINANCIALS
+// =======================
+
+model PaymentHistory {
+  id              String        @id @default(uuid())
+  memberId        Int
+  member          Member        @relation(fields: [memberId], references: [id])
+  
+  date            DateTime
+  product         String
+  sessions        Int
+  basePrice       Float
+  discountedPrice Float
+  method          String
+  installment     String
+  
+  trainerId       Int?          // Link to actual Staff member if we want relational integrity
+  trainerRel      Staff?        @relation("PaymentTrainer", fields: [trainerId], references: [id])
+  trainerName     String?       // Fallback for "윤지성" string mock data
+
+  locker          String?       // e.g. "A-03 (30일)"
+  status          String        @default("COMPLETED") // e.g. "COMPLETED", "UNPAID", "EXPIRED"
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Payroll {
+  id          Int           @id @default(autoincrement())
+  staffId     Int
+  staff       Staff         @relation(fields: [staffId], references: [id])
+  period      String        // Format 'YYYY-MM'
+  baseSalary  Float
+  incentive   Float
+  total       Float
+  status      String        @default("PENDING") // e.g. "PENDING", "PAID"
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+// =======================
+// LOCKER MODELS
+// =======================
+
+model Locker {
+  id            String       @id // e.g. "A-01"
+  status        String       @default("AVAILABLE") // e.g. "AVAILABLE", "IN_USE", "EXPIRED", "MAINTENANCE"
+  
+  memberId      Int?
+  member        Member?      @relation(fields: [memberId], references: [id])
+  
+  startDate     DateTime?
+  expireDate    DateTime?
+  productId     Int?         // The product that was purchased to assign this locker
+  paymentStatus String?      // e.g. "PAID", "UNPAID"
+  paymentMethod String?      // e.g. "CARD", "TRANSFER"
+  memo          String?
+
+  history       LockerHistory[]
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model LockerHistory {
+  id        Int               @id @default(autoincrement())
+  lockerId  String
+  locker    Locker            @relation(fields: [lockerId], references: [id], onDelete: Cascade)
+  
+  date      DateTime
+  type      String            // e.g. "ASSIGN", "MAINTENANCE", "SYSTEM", "MEMO"
+  desc      String
+
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+// =======================
+// SCHEDULE & EVENTS
+// =======================
+
+model Event {
+  id        Int       @id @default(autoincrement())
+  title     String
+  time      String
+  duration  String
+  
+  trainerId Int?
+  trainer   Staff?    @relation(fields: [trainerId], references: [id])
+  
+  type      String    // e.g. "PT", "GROUP"
+  color     String    // e.g., "bg-emerald-500"
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}

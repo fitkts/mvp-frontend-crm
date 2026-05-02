@@ -1,44 +1,6 @@
 import { Users, CreditCard, Calendar, TrendingUp, ArrowUpRight, ArrowDownRight, Activity, Clock, Target } from 'lucide-react';
 import { motion } from 'motion/react';
-
-const STATS = [
-  { 
-    label: '전체 회원', 
-    value: '1,284', 
-    change: '+12%', 
-    isPositive: true, 
-    icon: Users, 
-    color: 'bg-emerald-50 text-emerald-600',
-    description: '지난 달 대비 142명 증가'
-  },
-  { 
-    label: '이번 달 매출', 
-    value: '₩42.8M', 
-    change: '+8.2%', 
-    isPositive: true, 
-    icon: CreditCard, 
-    color: 'bg-blue-50 text-blue-600',
-    description: '목표 매출의 85% 달성'
-  },
-  { 
-    label: '오늘 예약', 
-    value: '24', 
-    change: '-2', 
-    isPositive: false, 
-    icon: Calendar, 
-    color: 'bg-amber-50 text-amber-600',
-    description: '오전 12건 / 오후 12건'
-  },
-  { 
-    label: '평균 출석률', 
-    value: '78%', 
-    change: '+4%', 
-    isPositive: true, 
-    icon: Activity, 
-    color: 'bg-rose-50 text-rose-600',
-    description: '피크 타임: 19:00 - 21:00'
-  },
-];
+import { useAppStore } from '../store';
 
 const RECENT_ACTIVITIES = [
   { id: 1, type: 'payment', user: '강민준', detail: 'PT 20회 결제 완료', time: '10분 전', amount: '+₩900,000' },
@@ -48,6 +10,47 @@ const RECENT_ACTIVITIES = [
 ];
 
 export default function DashboardPage() {
+  const members = useAppStore(state => state.members);
+
+  const STATS = [
+    { 
+      label: '전체 회원', 
+      value: members.length.toLocaleString(), 
+      change: '+12%', 
+      isPositive: true, 
+      icon: Users, 
+      color: 'bg-emerald-50 text-emerald-600',
+      description: '지난 달 대비 142명 증가'
+    },
+    { 
+      label: '이번 달 매출', 
+      value: '₩42.8M', 
+      change: '+8.2%', 
+      isPositive: true, 
+      icon: CreditCard, 
+      color: 'bg-blue-50 text-blue-600',
+      description: '목표 매출의 85% 달성'
+    },
+    { 
+      label: '오늘 예약', 
+      value: '24', 
+      change: '-2', 
+      isPositive: false, 
+      icon: Calendar, 
+      color: 'bg-amber-50 text-amber-600',
+      description: '오전 12건 / 오후 12건'
+    },
+    { 
+      label: '평균 출석률', 
+      value: '78%', 
+      change: '+4%', 
+      isPositive: true, 
+      icon: Activity, 
+      color: 'bg-rose-50 text-rose-600',
+      description: '피크 타임: 19:00 - 21:00'
+    },
+  ];
+
   return (
     <div className="space-y-8 pb-12">
       {/* Welcome Header */}

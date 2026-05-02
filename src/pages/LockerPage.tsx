@@ -1,37 +1,7 @@
 import { useState, FormEvent, useRef, useEffect, ChangeEvent } from 'react';
 import { Box, Search, Filter, User, Calendar, Settings, CheckCircle2, AlertCircle, X, Save, Clock, CreditCard } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MOCK_PRODUCTS } from '../lib/productData';
-
-const MOCK_MEMBERS = [
-  { id: 'm1', name: '강민준', phone: '010-1111-2222', recentPurchase: { productId: 6, expireDate: '2026-07-15' } },
-  { id: 'm2', name: '박서연', phone: '010-3333-4444', recentPurchase: { productId: 6, expireDate: '2026-11-20' } },
-  { id: 'm3', name: '이도현', phone: '010-5555-6666', recentPurchase: null },
-  { id: 'm4', name: '김지우', phone: '010-7777-8888', recentPurchase: { productId: 6, expireDate: '2026-08-30' } },
-];
-
-interface LockerHistoryItem {
-  id: number;
-  date: string;
-  type: 'ASSIGN' | 'MAINTENANCE' | 'SYSTEM' | 'MEMO';
-  desc: string;
-}
-
-// 사물함 상태 타입
-type LockerStatus = 'AVAILABLE' | 'IN_USE' | 'EXPIRED' | 'MAINTENANCE';
-
-interface Locker {
-  id: string;
-  status: LockerStatus;
-  memberName?: string;
-  startDate?: string;
-  expireDate?: string;
-  productId?: number;
-  paymentStatus?: 'PAID' | 'UNPAID';
-  paymentMethod?: 'CARD' | 'TRANSFER' | 'CASH';
-  memo?: string;
-  history?: LockerHistoryItem[];
-}
+import { useAppStore, Locker, LockerStatus } from '../store';
 
 // 날짜 계산 헬퍼
 function calculateExpireDate(startDate: string, addDays: number) {
@@ -43,16 +13,6 @@ function calculateExpireDate(startDate: string, addDays: number) {
 
 const todayString = new Date().toISOString().split('T')[0];
 
-// 초기 10개의 사물함 데이터 (A구역)
-const INITIAL_LOCKERS: Locker[] = Array.from({ length: 30 }, (_, i) => {
-  const id = `A-${String(i + 1).padStart(2, '0')}`;
-  if (i === 0) return { id, status: 'IN_USE', memberName: '강민준', startDate: '2026-04-15', expireDate: '2026-07-15', productId: 6, history: [{ id: 1, date: '2026-04-15', type: 'ASSIGN', desc: '[강민준] 배정 - 개인 사물함 3개월 (결제완료)' }] };
-  if (i === 1) return { id, status: 'IN_USE', memberName: '박서연', startDate: '2026-02-20', expireDate: '2026-05-20', productId: 6, history: [{ id: 2, date: '2026-02-20', type: 'ASSIGN', desc: '[박서연] 배정 - 개인 사물함 3개월 (결제완료)' }] };
-  if (i === 4) return { id, status: 'EXPIRED', memberName: '이도현', startDate: '2026-01-10', expireDate: '2026-04-10', productId: 6, history: [{ id: 3, date: '2026-04-10', type: 'SYSTEM', desc: '[이도현] 이용 기간 만료' }, { id: 4, date: '2026-01-10', type: 'ASSIGN', desc: '[이도현] 배정 - 개인 사물함 3개월 (결제완료)' }] };
-  if (i === 9) return { id, status: 'MAINTENANCE', memo: '경첩 수리 필요', history: [{ id: 5, date: '2026-04-18', type: 'MAINTENANCE', desc: '경첩 고장으로 수리 접수' }] };
-  return { id, status: 'AVAILABLE', history: [{ id: 7, date: '2025-01-01', type: 'SYSTEM', desc: '사물함 생성' }] };
-});
-
 const STATUS_CONFIG = {
   AVAILABLE: { label: '사용 가능', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', ring: 'focus:ring-emerald-500/20' },
   IN_USE: { label: '사용 중', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', ring: 'focus:ring-blue-500/20' },
@@ -61,7 +21,12 @@ const STATUS_CONFIG = {
 };
 
 export default function LockerPage() {
-  const [lockers, setLockers] = useState<Locker[]>(INITIAL_LOCKERS);
+  const lockers = useAppStore(state => state.lockers);
+  const setLockersStore = useAppStore(state => state.setLockers);
+  const updateLockerStore = useAppStore(state => state.updateLocker);
+  const products = useAppStore(state => state.products);
+  const members = useAppStore(state => state.members);
+
   const [selectedLocker, setSelectedLocker] = useState<Locker | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filter, setFilter] = useState<LockerStatus | 'ALL'>('ALL');
@@ -84,7 +49,7 @@ export default function LockerPage() {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const filteredMembers = MOCK_MEMBERS.filter(m => m.name.includes(searchKeyword));
+  const filteredMembers = members.filter(m => m.name.includes(searchKeyword));
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -96,12 +61,12 @@ export default function LockerPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleMemberSelect = (member: typeof MOCK_MEMBERS[0]) => {
+  const handleMemberSelect = (member: any) => {
     setFormData(prev => ({ 
       ...prev, 
       memberName: member.name,
-      productId: member.recentPurchase?.productId || prev.productId,
-      expireDate: member.recentPurchase?.expireDate || prev.expireDate
+      productId: member.recentPurchase ? 6 : prev.productId, // Fallback since real Member doesn't have object
+      expireDate: prev.expireDate
     }));
     setSearchKeyword(member.name);
     setShowDropdown(false);
@@ -135,7 +100,7 @@ export default function LockerPage() {
     const newPid = Number(e.target.value);
     let newExpire = formData.expireDate;
     if (newPid && formData.startDate) {
-      const p = MOCK_PRODUCTS.find(p => p.id === newPid);
+      const p = products.find(p => p.id === newPid);
       if (p && p.validDays) {
         newExpire = calculateExpireDate(formData.startDate, p.validDays);
       }
@@ -147,7 +112,7 @@ export default function LockerPage() {
     const newStart = e.target.value;
     let newExpire = formData.expireDate;
     if (formData.productId) {
-      const p = MOCK_PRODUCTS.find(p => p.id === formData.productId);
+      const p = products.find(p => p.id === formData.productId);
       if (p && p.validDays) {
         newExpire = calculateExpireDate(newStart, p.validDays);
       }
@@ -162,7 +127,7 @@ export default function LockerPage() {
     let newHistory = [...(formData.history || [])];
 
     if (formData.status === 'IN_USE' && formData.productId && selectedLocker.status !== 'IN_USE') {
-      const p = MOCK_PRODUCTS.find(p => p.id === formData.productId);
+      const p = products.find(p => p.id === formData.productId);
       const isPaid = formData.paymentStatus === 'PAID' || !formData.paymentStatus;
       
       newHistory.unshift({
@@ -198,9 +163,7 @@ export default function LockerPage() {
 
     const finalData = { ...formData, history: newHistory };
 
-    setLockers(prev => prev.map(l => 
-      l.id === selectedLocker.id ? { ...l, ...finalData } as Locker : l
-    ));
+    updateLockerStore(selectedLocker.id, finalData);
     setIsModalOpen(false);
   };
 
@@ -220,20 +183,17 @@ export default function LockerPage() {
     setTotalLockers(tempTotal);
     setNumberingDirection(tempDirection);
     
-    setLockers(prev => {
-        let current = [...prev];
-        if (totalNeeded > current.length) {
-            const newLockers = Array.from({length: totalNeeded - current.length}, (_, i) => {
-                const idNum = current.length + i + 1;
-                const id = `A-${String(idNum).padStart(2, '0')}`;
-                return { id, status: 'AVAILABLE' as LockerStatus };
-            });
-            return [...current, ...newLockers];
-        } else if (totalNeeded < current.length) {
-            return current.slice(0, totalNeeded);
-        }
-        return current;
-    });
+    let current = [...lockers];
+    if (totalNeeded > current.length) {
+        const newLockers = Array.from({length: totalNeeded - current.length}, (_, i) => {
+            const idNum = current.length + i + 1;
+            const id = `A-${String(idNum).padStart(2, '0')}`;
+            return { id, status: 'AVAILABLE' as LockerStatus };
+        });
+        setLockersStore([...current, ...newLockers]);
+    } else if (totalNeeded < current.length) {
+        setLockersStore(current.slice(0, totalNeeded));
+    }
     
     setIsZoneSettingModalOpen(false);
     setCurrentPage(1);
@@ -663,7 +623,7 @@ export default function LockerPage() {
                               onChange={handleProductChange}
                             >
                               <option value="">상품 선택 안함</option>
-                              {MOCK_PRODUCTS.filter(p => p.category === 'LOCKER').map(p => (
+                              {products.filter(p => p.category === 'LOCKER').map(p => (
                                 <option key={p.id} value={p.id}>{p.name} ({p.price.toLocaleString()}원)</option>
                               ))}
                             </select>
@@ -705,7 +665,7 @@ export default function LockerPage() {
                               상품 결제 연동
                             </h4>
                             {formData.productId ? (() => {
-                              const p = MOCK_PRODUCTS.find(p => p.id === formData.productId);
+                              const p = products.find(p => p.id === formData.productId);
                               return (
                                 <div className="space-y-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
                                   <div className="flex justify-between items-center">

@@ -3,39 +3,7 @@ import { Search, Plus, Phone, Activity, Target, CreditCard, CalendarDays, MoreHo
 import { motion, AnimatePresence } from 'motion/react';
 import RegistrationModalP from '../components/members/RegistrationModalP';
 import { MOCK_STAFF } from '../lib/staffData';
-
-const INITIAL_MOCK_MEMBERS = [
-  { 
-    id: 1, name: '강민준', gender: '남', phone: '010-3001-0001', status: 'ACTIVE', registrationDate: '2025-11-01', lastVisit: '2026-04-14', email: 'minjun@example.com', goal: '체지방 감량', attendance: 85, totalPaid: 1500000, recentPurchase: 'PT 프리미엄 20회', remainingSessions: 12, assignedTrainerId: 1,
-    paymentHistory: [
-      { id: 'pay_1', date: '2026.04.01', product: 'PT 프리미엄 20회', sessions: 20, basePrice: 1500000, discountedPrice: 1500000, method: '카드', installment: '일시불', trainer: '윤지성', locker: 'A-03 (30일)', status: 'COMPLETED' }
-    ]
-  },
-  { 
-    id: 2, name: '김지은', gender: '여', phone: '010-4002-0002', status: 'STOP', registrationDate: '2026-01-15', lastVisit: '2026-04-10', email: 'jieun@example.com', goal: '근력 증가', attendance: 62, totalPaid: 500000, recentPurchase: 'PT 베이직 10회', remainingSessions: 4, assignedTrainerId: 2,
-    paymentHistory: [
-      { id: 'pay_2', date: '2026.03.15', product: 'PT 베이직 10회', sessions: 10, basePrice: 600000, discountedPrice: 500000, method: '이체', installment: '없음', trainer: '이코치', locker: '미사용', status: 'COMPLETED' }
-    ]
-  },
-  { 
-    id: 3, name: '이도현', gender: '남', phone: '010-5003-0003', status: 'EXPIRED', registrationDate: '2025-08-20', lastVisit: '2026-03-20', email: 'dohyun@example.com', goal: '체력 증진', attendance: 45, totalPaid: 200000, recentPurchase: '헬스 3개월권', remainingSessions: 0, assignedTrainerId: 3,
-    paymentHistory: [
-      { id: 'pay_3', date: '2025.08.20', product: '헬스 3개월권', sessions: 0, basePrice: 200000, discountedPrice: 200000, method: '카드', installment: '3개월', trainer: '데스크', locker: 'B-01 (90일)', status: 'EXPIRED' }
-    ]
-  },
-  { 
-    id: 4, name: '박서연', gender: '여', phone: '010-6004-0004', status: 'ACTIVE', registrationDate: '2026-03-01', lastVisit: '2026-04-15', email: 'seoyeon@example.com', goal: '자세 교정', attendance: 92, totalPaid: 250000, recentPurchase: '그룹 필라테스 10회', remainingSessions: 8, assignedTrainerId: 2,
-    paymentHistory: [
-      { id: 'pay_4', date: '2026.03.01', product: '그룹 필라테스 10회', sessions: 10, basePrice: 250000, discountedPrice: 250000, method: '카드', installment: '일시불', trainer: '이코치', locker: '미사용', status: 'COMPLETED' }
-    ]
-  },
-  { 
-    id: 5, name: '정우성', gender: '남', phone: '010-7005-0005', status: 'STOP', registrationDate: '2025-12-10', lastVisit: '2026-02-28', email: 'woosung@example.com', goal: '재활', attendance: 30, totalPaid: 900000, recentPurchase: 'PT 프리미엄 20회', remainingSessions: 15, assignedTrainerId: 1,
-    paymentHistory: [
-      { id: 'pay_5', date: '2025.12.10', product: 'PT 프리미엄 20회', sessions: 20, basePrice: 1500000, discountedPrice: 900000, method: '복합', installment: '-', trainer: '김대표', locker: 'B-02 (30일)', status: 'UNPAID' }
-    ]
-  },
-];
+import { useAppStore } from '../store';
 
 const StatusBadge = ({ status }: { status: string }) => {
   switch (status) {
@@ -67,7 +35,10 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 export default function MembersPage() {
-  const [members, setMembers] = useState(INITIAL_MOCK_MEMBERS);
+  const members = useAppStore(state => state.members);
+  const updateMember = useAppStore(state => state.updateMember);
+  const addMember = useAppStore(state => state.addMember);
+  const staff = useAppStore(state => state.staff);
   const [selectedMember, setSelectedMember] = useState<any>(members[0]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
@@ -83,17 +54,14 @@ export default function MembersPage() {
 
   const handleTrainerChange = (newTrainerIdStr: string) => {
     const newTrainerId = parseInt(newTrainerIdStr);
-    const updatedMembers = members.map(m => 
-      m.id === selectedMember.id ? { ...m, assignedTrainerId: newTrainerId } : m
-    );
-    setMembers(updatedMembers);
+    updateMember(selectedMember.id, { assignedTrainerId: newTrainerId });
     setSelectedMember({ ...selectedMember, assignedTrainerId: newTrainerId });
     setIsEditingTrainer(false);
   };
   
   const getTrainerName = (trainerId: number | undefined) => {
      if (!trainerId) return '미배정';
-     const trainer = MOCK_STAFF.find(s => s.id === trainerId);
+     const trainer = staff.find(s => s.id === trainerId);
      if (trainer) return `${trainer.name} (${trainer.role === 'ADMIN' ? '수석' : '트레이너'})`;
      return '미배정';
   };
@@ -348,8 +316,8 @@ export default function MembersPage() {
                              autoFocus
                            >
                               <option value="">미배정</option>
-                              {MOCK_STAFF.filter(s => s.role !== 'MANAGER').map(staff => (
-                                <option key={staff.id} value={staff.id}>{staff.name} ({staff.role === 'ADMIN' ? '수석' : '트레이너'})</option>
+                              {staff.filter(s => s.role !== 'MANAGER').map(staffMember => (
+                                <option key={staffMember.id} value={staffMember.id}>{staffMember.name} ({staffMember.role === 'ADMIN' ? '수석' : '트레이너'})</option>
                               ))}
                            </select>
                          ) : (
@@ -442,7 +410,7 @@ export default function MembersPage() {
               {activeTab === 'payment' && (
                  <div className="flex-1 overflow-hidden flex flex-col uppercase tracking-tighter">
                     <div className="px-5 py-4 flex items-center justify-between bg-slate-50/50 border-b border-slate-100">
-                       <h3 className="text-[11px] font-black text-slate-900 tracking-wider">PAYMENT LOG <span className="text-indigo-600 ml-1">[{selectedMember.paymentHistory?.length || 0}]</span></h3>
+                       <h3 className="text-[11px] font-black text-slate-900 tracking-wider">PAYMENT LOG <span className="text-indigo-600 ml-1">[{selectedMember.paymentHistories?.length || 0}]</span></h3>
                        <button className="text-[10px] font-black text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors">
                           CSV EXPORT <FileText size={12}/>
                        </button>
@@ -458,7 +426,7 @@ export default function MembersPage() {
                              </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-50">
-                             {selectedMember.paymentHistory?.map((pay: any) => (
+                             {selectedMember.paymentHistories?.map((pay: any) => (
                                 <tr key={pay.id} className="hover:bg-slate-50/50 transition-colors group">
                                    <td className="px-5 py-4 align-top">
                                       <div className="text-[10px] font-black text-slate-900">{pay.date}</div>
@@ -503,7 +471,7 @@ export default function MembersPage() {
                           </tbody>
                        </table>
                        
-                       {!selectedMember.paymentHistory?.length && (
+                       {!selectedMember.paymentHistories?.length && (
                           <div className="py-20 flex flex-col items-center justify-center opacity-30 grayscale">
                              <CreditCard size={40} className="mb-2" />
                              <p className="text-[11px] font-black">데이터가 존재하지 않습니다</p>
@@ -539,7 +507,7 @@ export default function MembersPage() {
       initialStep={modalPMode.step}
       initialMemberName={modalPMode.name}
       onSaveMember={(newMember) => {
-        setMembers([newMember, ...members]);
+        addMember(newMember);
       }}
     />
     </>

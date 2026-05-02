@@ -1,7 +1,7 @@
 import { useState, ChangeEvent, useEffect, useRef } from 'react';
 import { X, User, Activity, CreditCard, Camera, MessageSquare, ChevronRight, ChevronLeft, Check, ClipboardList, Save, Flame, Star, Cloud, MapPin, Link as LinkIcon, Loader2, Sparkles, Plus, AlertCircle, Mail, FileText, Ban, Calendar, Box } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MOCK_STAFF } from '../../lib/staffData';
+import { useAppStore } from '../../store';
 
 interface Props {
   isOpen: boolean;
@@ -18,9 +18,6 @@ interface PaymentSplit {
    installment: string;
 }
 
-// 필터링된 활성 직원 데이터
-const ACTIVE_STAFF = MOCK_STAFF.filter(s => s.status === 'ACTIVE');
-
 // --- '사물함관리' 페이지 연동 데이터 시뮬레이션 ---
 const AVAILABLE_LOCKERS = [
   { id: 'A-03', area: 'A구역' },
@@ -34,6 +31,9 @@ const AVAILABLE_LOCKERS = [
 ];
 
 export default function RegistrationModalP({ isOpen, onClose, initialStep, initialMemberName, onSaveMember }: Props) {
+  const staffList = useAppStore(state => state.staff);
+  const ACTIVE_STAFF = staffList.filter(s => s.status === 'ACTIVE');
+
   const [step, setStep] = useState(1);
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -271,7 +271,7 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
         recentPurchase: '신규 상품',
         remainingSessions: sessions || 0,
         assignedTrainerId: memberManager ? parseInt(memberManager) : undefined,
-        paymentHistory: splits.map(s => ({
+        paymentHistories: splits.map(s => ({
           id: s.id,
           date: new Date().toISOString().split('T')[0],
           product: '신규 상품',
@@ -280,7 +280,7 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
           discountedPrice: discountedPrice,
           method: s.method,
           installment: s.installment,
-          trainer: MOCK_STAFF.find(st => st.id.toString() === paymentTrainer)?.name || '미정',
+          trainer: staffList.find(st => st.id.toString() === paymentTrainer)?.name || '미정',
           locker: isLockerActive ? selectedLockerId : '미사용',
           status: 'COMPLETED'
         }))
@@ -292,7 +292,7 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
 
   const getPreviewMsg = () => {
     const name = memberName || 'OOO';
-    const trainerName = MOCK_STAFF.find(s => s.id.toString() === paymentTrainer)?.name || '미정';
+    const trainerName = staffList.find(s => s.id.toString() === paymentTrainer)?.name || '미정';
     const lockerInfo = isLockerActive ? `\n[사물함] ${selectedLockerId}번 (~${lockerEndDate})` : '';
     if (msgTemplate === '기본형') return `[안내] ${name}님, 등록이 완료되었습니다.${lockerInfo}\n담당: ${trainerName}`;
     if (msgTemplate === '친근형') return `안녕하세요 ${name}님! 🎉 함께 목표를 달성해봐요!${lockerInfo} 첫 수업 때 봬요! 😊`;

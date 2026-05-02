@@ -6,6 +6,7 @@ import RegistrationModalStaff from '../components/members/RegistrationModalStaff
 import AssignedMembersModal from '../components/staff/AssignedMembersModal';
 import PayrollModalStaff from '../components/staff/PayrollModalStaff';
 import MonthlyClassProgressModal from '../components/staff/MonthlyClassProgressModal';
+import { useAppStore } from '../store';
 
 const RoleBadge = ({ role }: { role: string }) => {
   switch (role) {
@@ -56,7 +57,8 @@ const calculateTenure = (joinDate: string) => {
 };
 
 export default function StaffPage() {
-  const [staffList] = useState(MOCK_STAFF);
+  const staffList = useAppStore(state => state.staff);
+  const addStaff = useAppStore(state => state.addStaff);
   const [selectedStaff, setSelectedStaff] = useState<any>(staffList[0]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
@@ -651,7 +653,11 @@ export default function StaffPage() {
           </div>
         )}
       </AnimatePresence>
-      <RegistrationModalStaff isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <RegistrationModalStaff 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSaveStaff={(staffData) => addStaff(staffData)}
+      />
       <AssignedMembersModal 
         isOpen={isAssignedModalOpen} 
         onClose={() => setIsAssignedModalOpen(false)} 

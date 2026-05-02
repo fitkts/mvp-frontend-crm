@@ -1,15 +1,8 @@
 import { useState } from 'react';
-import { DollarSign, TrendingUp, Users, CreditCard, Calendar, Download, ChevronRight, ArrowUpRight, ArrowDownRight, PieChart as PieChartIcon } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, CreditCard, Calendar, Download, ArrowUpRight, ArrowDownRight, PieChart as PieChartIcon } from 'lucide-react';
 import { motion } from 'motion/react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
-
-// 더미 데이터
-const MOCK_STATS = [
-  { label: '총 매출', value: '42,500,000', change: '+12.5%', isPositive: true, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-  { label: '총 급여 지출', value: '18,200,000', change: '+5.2%', isPositive: false, icon: CreditCard, color: 'text-blue-600', bg: 'bg-blue-50' },
-  { label: '순이익', value: '24,300,000', change: '+18.3%', isPositive: true, icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50' },
-  { label: '활성 회원', value: '156', change: '+4', isPositive: true, icon: Users, color: 'text-orange-600', bg: 'bg-orange-50' },
-];
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useAppStore } from '../store';
 
 const MOCK_CHART_DATA = [
   { name: '1월', revenue: 3200, payroll: 1500 },
@@ -18,15 +11,19 @@ const MOCK_CHART_DATA = [
   { name: '4월', revenue: 4250, payroll: 1820 },
 ];
 
-const MOCK_PAYROLL_LIST = [
-  { id: 1, name: '김대표', role: 'ADMIN', baseSalary: 3000000, incentive: 1500000, total: 4500000, status: 'PAID' },
-  { id: 2, name: '이코치', role: 'TRAINER', baseSalary: 2000000, incentive: 3200000, total: 5200000, status: 'PENDING' },
-  { id: 3, name: '박매니저', role: 'MANAGER', baseSalary: 2500000, incentive: 800000, total: 3300000, status: 'PENDING' },
-  { id: 4, name: '최트레이너', role: 'TRAINER', baseSalary: 1800000, incentive: 2400000, total: 4200000, status: 'PENDING' },
-];
-
 export default function PayrollPage() {
   const [period, setPeriod] = useState('2026-04');
+  const payrolls = useAppStore(state => state.payrolls);
+  const members = useAppStore(state => state.members);
+
+  const activeMembersCount = members.filter(m => m.status === 'ACTIVE').length;
+
+  const STATS = [
+    { label: '총 매출', value: '42,500,000', change: '+12.5%', isPositive: true, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: '총 급여 지출', value: '18,200,000', change: '+5.2%', isPositive: false, icon: CreditCard, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: '순이익', value: '24,300,000', change: '+18.3%', isPositive: true, icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { label: '활성 회원', value: activeMembersCount.toLocaleString(), change: '+4', isPositive: true, icon: Users, color: 'text-orange-600', bg: 'bg-orange-50' },
+  ];
 
   return (
     <div className="space-y-8 pb-12">
@@ -59,7 +56,7 @@ export default function PayrollPage() {
 
       {/* KPI 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {MOCK_STATS.map((stat, i) => (
+        {STATS.map((stat, i) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 20 }}
@@ -144,7 +141,7 @@ export default function PayrollPage() {
         <div className="glass-card p-6 flex flex-col">
           <h3 className="text-lg font-display font-bold text-slate-900 mb-6">직원별 급여 현황</h3>
           <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-            {MOCK_PAYROLL_LIST.map((staff) => (
+            {payrolls.map((staff) => (
               <div key={staff.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-emerald-200 transition-all">
                 <div className="flex justify-between items-start mb-3">
                   <div>
