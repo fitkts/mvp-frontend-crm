@@ -1,7 +1,10 @@
 import { useState, FormEvent, useRef, useEffect, ChangeEvent } from 'react';
-import { Box, Search, Filter, User, Calendar, Settings, CheckCircle2, AlertCircle, X, Save, Clock, CreditCard } from 'lucide-react';
+import { Box, Search, Filter, User, Calendar, Settings, CheckCircle2, AlertCircle, X, Save, Clock, CreditCard, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore, Locker, LockerStatus } from '../store';
+import { useMembers } from '../api/queries/useMembers';
+import { useLockerList, useUpdateLocker } from '../api/queries/useLockers';
+import { useProductList } from '../api/queries/useProducts';
 
 // 날짜 계산 헬퍼
 function calculateExpireDate(startDate: string, addDays: number) {
@@ -21,11 +24,15 @@ const STATUS_CONFIG = {
 };
 
 export default function LockerPage() {
-  const lockers = useAppStore(state => state.lockers);
-  const setLockersStore = useAppStore(state => state.setLockers);
-  const updateLockerStore = useAppStore(state => state.updateLocker);
-  const products = useAppStore(state => state.products);
-  const members = useAppStore(state => state.members);
+  // React Query 데이터 소스
+  const { data: lockersResponse, isLoading: isLockersLoading } = useLockerList();
+  const lockers: Locker[] = (lockersResponse?.data || []) as any;
+  const setLockersStore = useAppStore(state => state.setLockers); // 존 설정에서 아직 사용
+  const updateLockerMutation = useUpdateLocker();
+  const { data: productsResponse } = useProductList();
+  const products = productsResponse?.data || [];
+  const { data: membersResponse } = useMembers();
+  const members = membersResponse?.data || [];
 
   const [selectedLocker, setSelectedLocker] = useState<Locker | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -163,8 +170,9 @@ export default function LockerPage() {
 
     const finalData = { ...formData, history: newHistory };
 
-    updateLockerStore(selectedLocker.id, finalData);
-    setIsModalOpen(false);
+    updateLockerMutation.mutate({ id: selectedLocker.id, data: finalData }, {
+      onSuccess: () => setIsModalOpen(false),
+    });
   };
 
   const openZoneSettingModal = () => {
@@ -198,6 +206,10 @@ export default function LockerPage() {
     setIsZoneSettingModalOpen(false);
     setCurrentPage(1);
   };
+
+  if (isLockersLoading) {
+    return <div className="flex items-center justify-center h-full min-h-[400px]"><Loader2 className="animate-spin text-emerald-500" size={32} /></div>;
+  }
 
   return (
     <div className="space-y-8 pb-12">

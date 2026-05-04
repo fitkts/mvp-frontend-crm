@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Search, Plus, Phone, Activity, Briefcase, CreditCard, CalendarDays, MoreHorizontal, Users, User, UserCircle, Settings2, FileText, ChevronRight, Award, Clock, DollarSign, Mail, Dumbbell, Sparkles, Calendar, Calculator, CheckCircle2 } from 'lucide-react';
+import { Search, Plus, Phone, Activity, Briefcase, CreditCard, CalendarDays, MoreHorizontal, Users, User, UserCircle, Settings2, FileText, ChevronRight, Award, Clock, DollarSign, Mail, Dumbbell, Sparkles, Calendar, Calculator, CheckCircle2, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MOCK_STAFF } from '../lib/staffData';
+
 import RegistrationModalStaff from '../components/members/RegistrationModalStaff';
 import AssignedMembersModal from '../components/staff/AssignedMembersModal';
 import PayrollModalStaff from '../components/staff/PayrollModalStaff';
 import MonthlyClassProgressModal from '../components/staff/MonthlyClassProgressModal';
 import { useAppStore } from '../store';
+import { useStaffList, useCreateStaff } from '../api/queries/useStaff';
 
 const RoleBadge = ({ role }: { role: string }) => {
   switch (role) {
@@ -57,8 +58,9 @@ const calculateTenure = (joinDate: string) => {
 };
 
 export default function StaffPage() {
-  const staffList = useAppStore(state => state.staff);
-  const addStaff = useAppStore(state => state.addStaff);
+  const { data: staffData, isLoading } = useStaffList();
+  const staffList = staffData?.data || [];
+  const createStaffMutation = useCreateStaff();
   const [selectedStaff, setSelectedStaff] = useState<any>(staffList[0]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
@@ -67,9 +69,13 @@ export default function StaffPage() {
   const [isPayrollModalOpen, setIsPayrollModalOpen] = useState(false);
   const [isClassLogModalOpen, setIsClassLogModalOpen] = useState(false);
 
-  const filteredStaff = staffList.filter(s => 
+  const filteredStaff = staffList.filter((s: any) => 
     s.name.includes(searchTerm) || s.phone.includes(searchTerm)
   );
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-indigo-500" size={32} /></div>;
+  }
 
   return (
     <div className="flex items-start gap-5 h-[calc(100vh-140px)]">
@@ -656,7 +662,17 @@ export default function StaffPage() {
       <RegistrationModalStaff 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        onSaveStaff={(staffData) => addStaff(staffData)}
+        onSaveStaff={(staffData) => {
+          createStaffMutation.mutate(staffData, {
+            onSuccess: () => {
+              alert('성공적으로 등록되었습니다!');
+              setIsModalOpen(false);
+            },
+            onError: (err: any) => {
+              alert(`등록 실패: ${err.message || '알 수 없는 오류가 발생했습니다.'}`);
+            }
+          });
+        }}
       />
       <AssignedMembersModal 
         isOpen={isAssignedModalOpen} 

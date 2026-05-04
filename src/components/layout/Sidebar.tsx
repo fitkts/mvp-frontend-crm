@@ -42,15 +42,7 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-4 mt-auto">
-        <div className="bg-slate-50 rounded-2xl p-3 mb-4">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold shrink-0">AD</div>
-            <div className="text-xs overflow-hidden">
-              <div className="font-bold text-slate-900 truncate">김대표</div>
-              <div className="text-slate-500 truncate">Administrator</div>
-            </div>
-          </div>
-        </div>
+
         <button className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-rose-500 transition-colors w-full group">
           <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
           <span className="text-sm font-bold">로그아웃</span>

@@ -244,50 +244,83 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
 
   const handlePartialSave = () => {
     if (!isDuplicateChecked) return alert('성함 및 연락처 중복 체크를 먼저 진행해 주세요.');
-    alert(`[단계 1 저장]\n회원: ${memberName}\n상태: 임시 리드 등록 완료`);
-    onClose();
-  };
-
-  const handleFinalSave = () => {
-    // 최종 무결성 검사
-    if (!isBalanced) return alert('결제 금액과 총액이 일치하지 않습니다.');
-    if (isLockerActive && !selectedLockerId) return alert('배정할 사물함 번호를 선택해주세요.');
-
-    alert(`[P타입 최종 등록 완료]\n회원: ${memberName}\n결제: ${discountedPrice.toLocaleString()}원\n미수: ${unpaidAmount.toLocaleString()}원\n사물함: ${isLockerActive ? selectedLockerId + '번 배정' : '미사용'}\n\n신규 회원이 목록에 추가되었습니다.`);
     
     if (onSaveMember) {
-      onSaveMember({
-        id: Math.floor(Math.random() * 1000) + 10,
+      const partialMember = {
         name: memberName || '신규 회원',
         gender: gender === 'M' ? '남' : '여',
         phone: phone || '010-0000-0000',
         status: 'ACTIVE',
-        registrationDate: workoutStartDate || new Date().toISOString().split('T')[0],
-        lastVisit: '-',
+        registrationDate: new Date().toISOString(),
+        email: email || '',
+        goal: goals[0] || '기본 목표',
+        attendance: 0,
+        totalPaid: 0,
+        recentPurchase: '단순 상담/리드',
+        remainingSessions: 0,
+        assignedTrainerId: memberManager ? parseInt(memberManager, 10) : undefined,
+      };
+      onSaveMember(partialMember);
+    }
+
+    alert(`[단계 1 저장]\n회원: ${memberName}\n상태: 임시 리드 등록 완료`);
+    onClose();
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (step === 1) {
+      setStep(2);
+    } else {
+      handleFinalSave();
+    }
+  };
+
+  const handleFinalSave = () => {
+    console.log('1. handleFinalSave 시작됨');
+    // 최종 무결성 검사
+    if (!isBalanced) return alert('결제 금액과 총액이 일치하지 않습니다.');
+    if (isLockerActive && !selectedLockerId) return alert('배정할 사물함 번호를 선택해주세요.');
+
+    console.log('2. 무결성 통과 완료');
+
+    alert(`[P타입 최종 등록 완료]\n회원: ${memberName}\n결제: ${discountedPrice.toLocaleString()}원\n미수: ${unpaidAmount.toLocaleString()}원\n사물함: ${isLockerActive ? selectedLockerId + '번 배정' : '미사용'}\n\n신규 회원이 목록에 추가되었습니다.`);
+    
+    if (onSaveMember) {
+      const newMember = {
+        name: memberName || '신규 회원',
+        gender: gender === 'M' ? '남' : '여',
+        phone: phone || '010-0000-0000',
+        status: 'ACTIVE',
+        registrationDate: workoutStartDate ? new Date(workoutStartDate).toISOString() : new Date().toISOString(),
         email: email || '',
         goal: goals[0] || '기본 목표',
         attendance: 0,
         totalPaid: totalPaid,
-        recentPurchase: '신규 상품',
+        recentPurchase: basePrice > 0 ? '수강권 결제' : '신규 회원',
         remainingSessions: sessions || 0,
-        assignedTrainerId: memberManager ? parseInt(memberManager) : undefined,
-        paymentHistories: splits.map(s => ({
-          id: s.id,
-          date: new Date().toISOString().split('T')[0],
-          product: '신규 상품',
-          sessions: sessions,
-          basePrice: basePrice,
-          discountedPrice: discountedPrice,
-          method: s.method,
-          installment: s.installment,
-          trainer: staffList.find(st => st.id.toString() === paymentTrainer)?.name || '미정',
-          locker: isLockerActive ? selectedLockerId : '미사용',
-          status: 'COMPLETED'
-        }))
-      });
+        assignedTrainerId: memberManager ? parseInt(memberManager, 10) : undefined,
+        paymentHistories: {
+          create: splits.map(s => ({
+            date: new Date().toISOString(),
+            product: basePrice > 0 ? '수강권' : '신규 상품',
+            sessions: sessions,
+            basePrice: basePrice,
+            discountedPrice: discountedPrice,
+            method: s.method,
+            installment: s.installment,
+            trainerId: paymentTrainer ? parseInt(paymentTrainer, 10) : undefined,
+            trainerName: staffList.find(st => st.id.toString() === paymentTrainer)?.name || '미정',
+            locker: isLockerActive ? selectedLockerId : '미사용',
+            status: 'COMPLETED'
+          }))
+        }
+      };
+      
+      console.log('3. 전송할 데이터:', newMember);
+      console.log('4. API 호출 직전');
+      onSaveMember(newMember);
     }
-
-    onClose();
   };
 
   const getPreviewMsg = () => {
@@ -317,7 +350,7 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
               </h2>
               <p className="text-[10px] text-slate-400 font-bold mt-0.5">사물함/직원관리 통합 연동 시스템</p>
             </div>
-            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+            <button type="button" onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
               <X size={20} />
             </button>
           </div>
@@ -335,7 +368,8 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
              </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar min-h-[500px]">
+          <form id="member-registration-form" onSubmit={handleFormSubmit} className="flex-1 flex flex-col h-full">
+            <div className="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar min-h-[500px]">
             <AnimatePresence mode="wait">
               {step === 1 && (
                 <motion.div key="step1" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-6">
@@ -343,6 +377,7 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2"><div className="w-1.5 h-4 bg-indigo-500 rounded-full" /><h3 className="text-sm font-black text-slate-900">회원 인적 사항</h3></div>
                       <button 
+                        type="button"
                         onClick={checkDuplicate}
                         disabled={isChecking || !memberName || !phone}
                         className={`px-3 py-1.5 rounded-lg text-white text-[10px] font-bold shadow-sm transition-all flex items-center gap-1 ${isDuplicateChecked ? 'bg-emerald-500' : 'bg-indigo-600 hover:bg-indigo-700'} disabled:opacity-50`}
@@ -374,7 +409,7 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
                          <label className="text-[10px] font-black text-slate-500 ml-1">성별</label>
                          <div className="flex gap-1 h-[38px]">
                            {['M', 'F'].map(g => (
-                             <button key={g} onClick={() => setGender(g as 'M'|'F')} className={`flex-1 rounded-xl text-[11px] font-black transition-all ${gender === g ? 'bg-slate-900 text-white' : 'bg-white text-slate-400 border border-slate-200'}`}>{g === 'M' ? '남' : '여'}</button>
+                             <button type="button" key={g} onClick={() => setGender(g as 'M'|'F')} className={`flex-1 rounded-xl text-[11px] font-black transition-all ${gender === g ? 'bg-slate-900 text-white' : 'bg-white text-slate-400 border border-slate-200'}`}>{g === 'M' ? '남' : '여'}</button>
                            ))}
                          </div>
                        </div>
@@ -456,6 +491,7 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
                             />
                          </div>
                          <button 
+                            type="button"
                             onClick={verifyDiscountCode}
                             disabled={isCheckingCode || !discountCode}
                             className={`px-4 py-2.5 rounded-2xl text-white text-[10px] font-black transition-all ${isCodeVerified ? 'bg-emerald-500' : 'bg-slate-900'} disabled:opacity-50`}
@@ -509,6 +545,7 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
                            </div>
                         </div>
                         <button 
+                          type="button"
                           onClick={() => setIsLockerActive(!isLockerActive)}
                           className={`relative w-12 h-6 rounded-full transition-all ${isLockerActive ? 'bg-emerald-600' : 'bg-slate-300'}`}
                         >
@@ -570,7 +607,7 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
                                  {ACTIVE_STAFF.map(s => <option key={s.id} value={s.id} className="bg-slate-900">{s.name} ({s.role === 'ADMIN' ? '수석' : '트레이너'})</option>)}
                               </select>
                            </div>
-                           <button onClick={addSplit} className="text-[10px] font-black text-white/50 hover:text-white flex items-center gap-1 transition-all"><Plus size={14}/>결제수단 추가</button>
+                           <button type="button" onClick={addSplit} className="text-[10px] font-black text-white/50 hover:text-white flex items-center gap-1 transition-all"><Plus size={14}/>결제수단 추가</button>
                         </div>
                       </div>
 
@@ -587,7 +624,7 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
                                  <input value={s.amount} onChange={e => updateSplit(s.id, 'amount', e.target.value)} className="bg-transparent text-sm font-black text-white text-right outline-none w-full tabular-nums" />
                               </div>
                               <span className="text-[10px] text-slate-600 font-bold">원</span>
-                              {splits.length > 1 && <button onClick={() => removeSplit(s.id)} className="p-1 hover:text-rose-400 transition-colors"><X size={14}/></button>}
+                              {splits.length > 1 && <button type="button" onClick={() => removeSplit(s.id)} className="p-1 hover:text-rose-400 transition-colors"><X size={14}/></button>}
                            </div>
                         ))}
                       </div>
@@ -596,11 +633,11 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
                         <div className="flex justify-between items-center">
                            <div className="flex items-center gap-3">
                               <span className="text-[11px] font-bold text-slate-500 underline decoration-orange-500 decoration-2 underline-offset-4">미수금 처리 (Unpaid Management)</span>
-                              <button onClick={() => {setIsUnpaidActive(!isUnpaidActive); if(isUnpaidActive) setUnpaidAmount(0);}} className={`w-8 h-4 rounded-full relative transition-all ${isUnpaidActive ? 'bg-orange-500' : 'bg-white/10'}`}>
+                              <button type="button" onClick={() => {setIsUnpaidActive(!isUnpaidActive); if(isUnpaidActive) setUnpaidAmount(0);}} className={`w-8 h-4 rounded-full relative transition-all ${isUnpaidActive ? 'bg-orange-500' : 'bg-white/10'}`}>
                                  <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-all ${isUnpaidActive ? 'translate-x-4' : ''}`} />
                               </button>
                            </div>
-                           {isUnpaidActive && <button onClick={setUnpaidToBalance} className="text-[9px] font-bold text-slate-500 hover:text-orange-400 transition-colors uppercase tracking-tighter">Set Remaining to Unpaid</button>}
+                           {isUnpaidActive && <button type="button" onClick={setUnpaidToBalance} className="text-[9px] font-bold text-slate-500 hover:text-orange-400 transition-colors uppercase tracking-tighter">Set Remaining to Unpaid</button>}
                         </div>
                         
                         {isUnpaidActive && (
@@ -629,7 +666,7 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
                    <section className="p-4 rounded-3xl border border-slate-100 bg-slate-50/50 space-y-4">
                       <div className="flex gap-2 overflow-x-auto no-scrollbar">
                         {['기본형', '친근형', '동기부여형'].map(t => (
-                          <button key={t} onClick={() => setMsgTemplate(t)} className={`px-4 py-2 rounded-2xl text-[10px] font-black transition-all ${msgTemplate === t ? 'bg-slate-900 text-white shadow-lg' : 'bg-white border border-slate-200 text-slate-400'}`}>{t}</button>
+                          <button type="button" key={t} onClick={() => setMsgTemplate(t)} className={`px-4 py-2 rounded-2xl text-[10px] font-black transition-all ${msgTemplate === t ? 'bg-slate-900 text-white shadow-lg' : 'bg-white border border-slate-200 text-slate-400'}`}>{t}</button>
                         ))}
                       </div>
                       <div className="p-4 bg-white border border-slate-100 rounded-2xl text-[11px] text-slate-500 italic leading-relaxed shadow-sm relative">
@@ -645,22 +682,23 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
           <div className="px-6 py-5 border-t border-slate-100 flex items-center justify-between shrink-0 bg-white">
              {step === 1 ? (
                <>
-                 <button onClick={onClose} className="text-slate-400 text-xs font-bold hover:text-slate-800 transition-colors">닫기</button>
+                 <button type="button" onClick={onClose} className="text-slate-400 text-xs font-bold hover:text-slate-800 transition-colors">닫기</button>
                  <div className="flex gap-2">
-                    <button onClick={handlePartialSave} className="px-5 py-3 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-2xl hover:bg-slate-50 transition-all">임시 리드 저장</button>
-                    <button onClick={() => setStep(2)} className="px-8 py-3 bg-slate-900 text-white text-xs font-black rounded-2xl hover:bg-slate-800 transition-all shadow-xl flex items-center gap-2">결제 및 관리 연동 <ChevronRight size={16}/></button>
+                    <button type="button" onClick={handlePartialSave} className="px-5 py-3 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-2xl hover:bg-slate-50 transition-all">임시 리드 저장</button>
+                    <button type="submit" className="px-8 py-3 bg-slate-900 text-white text-xs font-black rounded-2xl hover:bg-slate-800 transition-all shadow-xl flex items-center gap-2">결제 및 관리 연동 <ChevronRight size={16}/></button>
                  </div>
                </>
              ) : (
                <>
-                 <button onClick={() => setStep(1)} className="text-slate-400 text-xs font-bold hover:text-slate-800 flex items-center gap-1 group">이전 단계</button>
+                 <button type="button" onClick={() => setStep(1)} className="text-slate-400 text-xs font-bold hover:text-slate-800 flex items-center gap-1 group">이전 단계</button>
                  <div className="flex gap-2">
-                    <button onClick={handleRemotePayment} className="px-5 py-3 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-2xl hover:bg-slate-50 transition-all">{isLoadingLink ? <Loader2 size={16} className="animate-spin" /> : <LinkIcon size={16} />}</button>
-                    <button disabled={!isBalanced || discountedPrice === 0} onClick={handleFinalSave} className={`px-10 py-3 text-xs font-black rounded-2xl transition-all shadow-2xl ${isBalanced && discountedPrice > 0 ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>전산 최종 등록 완료</button>
+                    <button type="button" onClick={handleRemotePayment} className="px-5 py-3 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-2xl hover:bg-slate-50 transition-all">{isLoadingLink ? <Loader2 size={16} className="animate-spin" /> : <LinkIcon size={16} />}</button>
+                    <button type="submit" className={`px-10 py-3 text-xs font-black rounded-2xl transition-all shadow-2xl ${isBalanced ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>전산 최종 등록 완료</button>
                  </div>
                </>
              )}
           </div>
+        </form>
         </motion.div>
       </div>
     </AnimatePresence>

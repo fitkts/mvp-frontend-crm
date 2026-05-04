@@ -1,6 +1,7 @@
 import { Users, CreditCard, Calendar, TrendingUp, ArrowUpRight, ArrowDownRight, Activity, Clock, Target } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAppStore } from '../store';
+import { useMembers } from '../api/queries/useMembers';
 
 const RECENT_ACTIVITIES = [
   { id: 1, type: 'payment', user: '강민준', detail: 'PT 20회 결제 완료', time: '10분 전', amount: '+₩900,000' },
@@ -10,7 +11,8 @@ const RECENT_ACTIVITIES = [
 ];
 
 export default function DashboardPage() {
-  const members = useAppStore(state => state.members);
+  const { data: membersResponse } = useMembers();
+  const members = membersResponse?.data || [];
 
   const STATS = [
     { 

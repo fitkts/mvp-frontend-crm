@@ -3,14 +3,17 @@ import { Search, Plus, Package, CalendarDays, MoreVertical, Activity, Tag, Box }
 import { motion, AnimatePresence } from 'motion/react';
 import ProductRegistrationModal from '../components/products/ProductRegistrationModal';
 import ProductEditModal from '../components/products/ProductEditModal';
-import { Product } from '../lib/productData';
+
 import { useAppStore } from '../store';
+import { useProductList, useCreateProduct, useUpdateProduct, useDeleteProduct, Product } from '../api/queries/useProducts';
+import { Loader2 } from 'lucide-react';
 
 export default function ProductsPage() {
-  const products = useAppStore(state => state.products);
-  const updateProductStore = useAppStore(state => state.updateProduct);
-  const deleteProductStore = useAppStore(state => state.deleteProduct);
-  const addProductStore = useAppStore(state => state.addProduct);
+  const { data: productsData, isLoading } = useProductList();
+  const products = productsData?.data || [];
+  const updateProductMutation = useUpdateProduct();
+  const deleteProductMutation = useDeleteProduct();
+  const createProductMutation = useCreateProduct();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -25,17 +28,17 @@ export default function ProductsPage() {
   };
 
   const handleUpdateProduct = (updatedProduct: Product) => {
-    updateProductStore(updatedProduct.id, updatedProduct);
+    updateProductMutation.mutate({ id: updatedProduct.id, data: updatedProduct });
   };
 
   const handleDeleteProduct = (id: number) => {
-    deleteProductStore(id);
+    deleteProductMutation.mutate(id);
   };
 
   const handleAddProduct = (newProduct: Product) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, ...productPayload } = newProduct;
-    addProductStore(productPayload);
+    createProductMutation.mutate(productPayload);
   };
 
 

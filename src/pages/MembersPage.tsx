@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Plus, Phone, Activity, Target, CreditCard, CalendarDays, MoreHorizontal, Dumbbell, User, UserCircle, Pencil, FileText, ChevronRight, ChevronDown, AlertCircle, Box } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import RegistrationModalP from '../components/members/RegistrationModalP';
 import { MOCK_STAFF } from '../lib/staffData';
-import { useAppStore } from '../store';
+import { useAppStore, Member } from '../store';
+import { useMembers, useUpdateMember, useCreateMember } from '../api/queries/useMembers';
+import { Loader2 } from 'lucide-react';
 
 const StatusBadge = ({ status }: { status: string }) => {
   switch (status) {
@@ -35,12 +37,20 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 export default function MembersPage() {
-  const members = useAppStore(state => state.members);
-  const updateMember = useAppStore(state => state.updateMember);
-  const addMember = useAppStore(state => state.addMember);
+  const { data: membersResponse, isLoading, isError } = useMembers();
+  const members: Member[] = membersResponse?.data || [];
+  const updateMemberMutation = useUpdateMember();
+  const createMemberMutation = useCreateMember();
   const staff = useAppStore(state => state.staff);
-  const [selectedMember, setSelectedMember] = useState<any>(members[0]);
+  const [selectedMember, setSelectedMember] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    if (members.length > 0 && !selectedMember) {
+      setSelectedMember(members[0]);
+    }
+  }, [members, selectedMember]);
+
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditingTrainer, setIsEditingTrainer] = useState(false);
 
@@ -54,7 +64,7 @@ export default function MembersPage() {
 
   const handleTrainerChange = (newTrainerIdStr: string) => {
     const newTrainerId = parseInt(newTrainerIdStr);
-    updateMember(selectedMember.id, { assignedTrainerId: newTrainerId });
+    updateMemberMutation.mutate({ id: selectedMember.id, data: { assignedTrainerId: newTrainerId } });
     setSelectedMember({ ...selectedMember, assignedTrainerId: newTrainerId });
     setIsEditingTrainer(false);
   };
@@ -102,6 +112,19 @@ export default function MembersPage() {
             </div>
           </div>
 
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <Loader2 size={32} className="text-emerald-500 animate-spin" />
+            <p className="text-slate-500 font-medium text-sm">회원 데이터를 불러오는 중...</p>
+          </div>
+        ) : isError ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <AlertCircle size={32} className="text-rose-500" />
+            <p className="text-slate-500 font-medium text-sm">데이터를 불러오는데 실패했습니다.</p>
+          </div>
+        ) : (
+        <>
         {/* Table List */}
         <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar">
           <table className="w-full text-left min-w-[600px] border-collapse relative table-fixed">
@@ -183,6 +206,8 @@ export default function MembersPage() {
             </tbody>
           </table>
         </div>
+        </>
+        )}
       </div>
 
       {/* 2. Right Detail View - Minimalist & Data Heavy (Full height) */}
@@ -507,7 +532,15 @@ export default function MembersPage() {
       initialStep={modalPMode.step}
       initialMemberName={modalPMode.name}
       onSaveMember={(newMember) => {
-        addMember(newMember);
+        createMemberMutation.mutate(newMember, {
+          onSuccess: () => {
+            alert('성공적으로 등록되었습니다!');
+            setIsModalPOpen(false);
+          },
+          onError: (err: any) => {
+            alert(`등록 실패: ${err.message || '알 수 없는 오류가 발생했습니다.'}`);
+          }
+        });
       }}
     />
     </>

@@ -3,6 +3,7 @@ import { DollarSign, TrendingUp, Users, CreditCard, Calendar, Download, ArrowUpR
 import { motion } from 'motion/react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAppStore } from '../store';
+import { useMembers } from '../api/queries/useMembers';
 
 const MOCK_CHART_DATA = [
   { name: '1월', revenue: 3200, payroll: 1500 },
@@ -14,7 +15,8 @@ const MOCK_CHART_DATA = [
 export default function PayrollPage() {
   const [period, setPeriod] = useState('2026-04');
   const payrolls = useAppStore(state => state.payrolls);
-  const members = useAppStore(state => state.members);
+  const { data: membersResponse } = useMembers();
+  const members = membersResponse?.data || [];
 
   const activeMembersCount = members.filter(m => m.status === 'ACTIVE').length;
 

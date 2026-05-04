@@ -160,7 +160,6 @@ const INITIAL_LOCKERS: Locker[] = [
 
 export interface AppState {
   staff: Staff[];
-  members: Member[];
   products: Product[];
   lockers: Locker[];
   events: Event[];
@@ -170,10 +169,6 @@ export interface AppState {
   addStaff: (staff: Omit<Staff, 'id'>) => void;
   updateStaff: (id: number, data: Partial<Staff>) => void;
   deleteStaff: (id: number) => void;
-
-  addMember: (member: Omit<Member, 'id'>) => void;
-  updateMember: (id: number, data: Partial<Member>) => void;
-  deleteMember: (id: number) => void;
 
   addProduct: (product: Omit<Product, 'id'>) => void;
   updateProduct: (id: number, data: Partial<Product>) => void;
@@ -197,7 +192,6 @@ export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       staff: MOCK_STAFF,
-      members: INITIAL_MEMBERS,
       products: MOCK_PRODUCTS,
       lockers: INITIAL_LOCKERS,
       events: INITIAL_EVENTS,
@@ -214,19 +208,6 @@ export const useAppStore = create<AppState>()(
       deleteStaff: (id) =>
         set((state) => ({
           staff: state.staff.filter(s => s.id !== id)
-        })),
-
-      addMember: (memberData) =>
-        set((state) => ({
-          members: [{ ...memberData, id: Math.max(0, ...state.members.map(m => m.id)) + 1 }, ...state.members]
-        })),
-      updateMember: (id, data) =>
-        set((state) => ({
-          members: state.members.map(m => m.id === id ? { ...m, ...data } : m)
-        })),
-      deleteMember: (id) =>
-        set((state) => ({
-          members: state.members.filter(m => m.id !== id)
         })),
 
       addProduct: (productData) =>
@@ -287,7 +268,6 @@ export const useAppStore = create<AppState>()(
       name: 'awarefit-storage', // name of the item in the storage (must be unique)
       partialize: (state) => ({ 
         staff: state.staff,
-        members: state.members,
         products: state.products,
         lockers: state.lockers,
         events: state.events,
