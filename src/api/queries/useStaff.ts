@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { staffKeys } from './queryKeys';
-export type Staff = any;
+export type { Staff } from '../../lib/staffData';
 
 const fetchStaff = async (filters?: any): Promise<{ data: Staff[], meta: any }> => {
   return await api.get('/staff', { params: filters });

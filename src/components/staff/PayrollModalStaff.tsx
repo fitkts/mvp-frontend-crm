@@ -39,14 +39,14 @@ export default function PayrollModalStaff({ isOpen, onClose, staff }: Props) {
     incentiveRate: 3
   });
   const [deductionSettings, setDeductionSettings] = React.useState<DeductionSettings>({
-    type: staff?.description.includes('프리랜서') ? 'FREELANCE' : 'REGULAR',
+    type: staff?.description?.includes('프리랜서') ? 'FREELANCE' : 'REGULAR',
     items: {
       incomeTax: true,
       residenceTax: true,
-      nationalPension: !staff?.description.includes('프리랜서'),
-      healthInsurance: !staff?.description.includes('프리랜서'),
-      longTermCare: !staff?.description.includes('프리랜서'),
-      unemploymentInsurance: !staff?.description.includes('프리랜서'),
+      nationalPension: !staff?.description?.includes('프리랜서'),
+      healthInsurance: !staff?.description?.includes('프리랜서'),
+      longTermCare: !staff?.description?.includes('프리랜서'),
+      unemploymentInsurance: !staff?.description?.includes('프리랜서'),
     },
     rates: {
       incomeTax: 3,

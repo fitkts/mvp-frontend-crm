@@ -1,5 +1,5 @@
 import { useState, ChangeEvent, useEffect, useRef } from 'react';
-import { X, User, Activity, CreditCard, Camera, MessageSquare, ChevronRight, ChevronLeft, Check, ClipboardList, Save, Flame, Star, Cloud, MapPin, Link as LinkIcon, Loader2, Sparkles, Plus, AlertCircle, Mail, FileText, Ban, Calendar, Box } from 'lucide-react';
+import { X, User, Activity, CreditCard, Camera, MessageSquare, ChevronRight, ChevronLeft, Check, ClipboardList, Save, Flame, Star, Cloud, MapPin, Link as LinkIcon, Loader2, Sparkles, Plus, AlertCircle, Mail, FileText, Ban, Calendar, Box, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore } from '../../store';
 
@@ -7,8 +7,9 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   initialStep?: number;
-  initialMemberName?: string;
-  onSaveMember?: (memberData: any) => void;
+  member?: any; // Existing member data for editing
+  onSaveMember?: (memberData: any, isEdit: boolean) => void;
+  onDeleteMember?: (id: number) => void;
 }
 
 interface PaymentSplit {
@@ -30,7 +31,7 @@ const AVAILABLE_LOCKERS = [
   { id: 'B-02', area: 'B구역' },
 ];
 
-export default function RegistrationModalP({ isOpen, onClose, initialStep, initialMemberName, onSaveMember }: Props) {
+export default function RegistrationModalP({ isOpen, onClose, initialStep, member, onSaveMember, onDeleteMember }: Props) {
   const staffList = useAppStore(state => state.staff);
   const ACTIVE_STAFF = staffList.filter(s => s.status === 'ACTIVE');
 
@@ -94,7 +95,7 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
   const [msgTemplate, setMsgTemplate] = useState('기본형');
   const [isLoadingLink, setIsLoadingLink] = useState(false);
 
-  // 초기화
+  // 초기화 및 데이터 바인딩
   useEffect(() => {
     if (isOpen) {
       setStep(initialStep || 1);
@@ -102,25 +103,64 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
       const dateStr = now.toISOString().split('T')[0];
       const timeStr = now.toTimeString().slice(0, 5);
 
-      setMemberDate(dateStr); setMemberTime(timeStr);
+      // 기본값 설정
+      setMemberDate(dateStr); 
+      setMemberTime(timeStr);
       setWorkoutStartDate(dateStr);
-      setPaymentDate(dateStr); setPaymentTime(timeStr);
+      setPaymentDate(dateStr); 
+      setPaymentTime(timeStr);
       setLockerStartDate(dateStr);
+      
+      if (member) {
+        // 수정 모드: 기존 데이터 바인딩
+        setMemberName(member.name || '');
+        setPhone(member.phone || '');
+        setGender(member.gender === '남' ? 'M' : member.gender === '여' ? 'F' : '');
+        setBirthDate(member.birthDate || '');
+        setGrade(member.grade || 'NORMAL');
+        setEmail(member.email || '');
+        setMemo(member.memo || '');
+        setMemberManager(member.assignedTrainerId?.toString() || '');
+        setGoals(member.goal ? [member.goal] : ['체력 증진']);
+        setSource(member.source || '');
+        setMemberDate(member.registrationDate?.split('T')[0] || dateStr);
+        setWorkoutStartDate(member.registrationDate?.split('T')[0] || dateStr);
+        
+        setIsDuplicateChecked(true); // 기존 회원은 중복 체크 불필요
+      } else {
+        // 신규 등록 모드: 초기화
+        setMemberName(''); 
+        setPhone(''); 
+        setGender(''); 
+        setBirthDate(''); 
+        setGrade('NORMAL'); 
+        setEmail(''); 
+        setMemo('');
+        setMemberManager(''); 
+        setPaymentTrainer(''); 
+        setBasePrice(0); 
+        setSessions(0); 
+        setDiscountPercent(0);
+        setDiscountCode(''); 
+        setIsCodeVerified(false); 
+        setCodeDiscountAmount(0);
+        setIsLockerActive(false); 
+        setSelectedLockerId(''); 
+        setLockerAmount(0); 
+        setLockerPeriod(30);
+        setSplits([{ id: '1', method: '카드', amount: '0', installment: '일시불' }]);
+        setUnpaidAmount(0); 
+        setIsUnpaidActive(false); 
+        setIsLoadingLink(false);
+        setIsDuplicateChecked(false);
+      }
 
-      setMemberName(initialMemberName || ''); setPhone(''); setGender(''); setBirthDate(''); setGrade('NORMAL'); setEmail(''); setMemo('');
-      setMemberManager(''); setPaymentTrainer(''); setBasePrice(0); setSessions(0); setDiscountPercent(0);
-      setDiscountCode(''); setIsCodeVerified(false); setCodeDiscountAmount(0);
-      setIsLockerActive(false); setSelectedLockerId(''); setLockerAmount(0); setLockerPeriod(30);
-      setSplits([{ id: '1', method: '카드', amount: '0', installment: '일시불' }]);
-      setUnpaidAmount(0); setIsUnpaidActive(false); setIsLoadingLink(false);
-      setIsDuplicateChecked(false);
-
-      // 모달이 열릴 때 Step 1이면 성함 입력칸에 포커스 (애니메이션 고려하여 시간차 부여)
-      if ((initialStep || 1) === 1) {
+      // 모달이 열릴 때 Step 1이면 성함 입력칸에 포커스
+      if ((initialStep || 1) === 1 && !member) {
         setTimeout(() => nameRef.current?.focus(), 400);
       }
     }
-  }, [isOpen, initialStep]);
+  }, [isOpen, initialStep, member]);
 
   // 사물함 만료일 자동 계산 (무결성 검증 포함)
   useEffect(() => {
@@ -260,10 +300,10 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
         remainingSessions: 0,
         assignedTrainerId: memberManager ? parseInt(memberManager, 10) : undefined,
       };
-      onSaveMember(partialMember);
+      onSaveMember(partialMember, !!member);
     }
 
-    alert(`[단계 1 저장]\n회원: ${memberName}\n상태: 임시 리드 등록 완료`);
+    alert(`[${member ? '정보 수정' : '단계 1 저장'}]\n회원: ${memberName}\n상태: ${member ? '정보 변경 완료' : '임시 리드 등록 완료'}`);
     onClose();
   };
 
@@ -319,7 +359,7 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
       
       console.log('3. 전송할 데이터:', newMember);
       console.log('4. API 호출 직전');
-      onSaveMember(newMember);
+      onSaveMember(newMember, !!member);
     }
   };
 
@@ -346,13 +386,29 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
           <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
             <div>
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                신규 회원 등록 <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full uppercase tracking-tighter">Type P (Integrated)</span>
+                {member ? '회원 정보 수정' : '신규 회원 등록'} <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full uppercase tracking-tighter">Type P (Integrated)</span>
               </h2>
               <p className="text-[10px] text-slate-400 font-bold mt-0.5">사물함/직원관리 통합 연동 시스템</p>
             </div>
-            <button type="button" onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
-              <X size={20} />
-            </button>
+            <div className="flex items-center gap-1">
+              {member && (
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    if (window.confirm('정말로 이 회원을 삭제하시겠습니까?\n모든 결제 및 예약 내역이 영구 삭제됩니다.')) {
+                      onDeleteMember?.(member.id);
+                    }
+                  }}
+                  className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                  title="회원 삭제"
+                >
+                  <Trash2 size={20} />
+                </button>
+              )}
+              <button type="button" onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                <X size={20} />
+              </button>
+            </div>
           </div>
 
           {/* New Sleek Stepper */}
@@ -684,8 +740,8 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
                <>
                  <button type="button" onClick={onClose} className="text-slate-400 text-xs font-bold hover:text-slate-800 transition-colors">닫기</button>
                  <div className="flex gap-2">
-                    <button type="button" onClick={handlePartialSave} className="px-5 py-3 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-2xl hover:bg-slate-50 transition-all">임시 리드 저장</button>
-                    <button type="submit" className="px-8 py-3 bg-slate-900 text-white text-xs font-black rounded-2xl hover:bg-slate-800 transition-all shadow-xl flex items-center gap-2">결제 및 관리 연동 <ChevronRight size={16}/></button>
+                    <button type="button" onClick={handlePartialSave} className="px-5 py-3 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-2xl hover:bg-slate-50 transition-all">{member ? '수정 내용 저장' : '임시 리드 저장'}</button>
+                    <button type="submit" className="px-8 py-3 bg-slate-900 text-white text-xs font-black rounded-2xl hover:bg-slate-800 transition-all shadow-xl flex items-center gap-2">{member ? '추가 관리 설정' : '결제 및 관리 연동'} <ChevronRight size={16}/></button>
                  </div>
                </>
              ) : (
@@ -693,7 +749,7 @@ export default function RegistrationModalP({ isOpen, onClose, initialStep, initi
                  <button type="button" onClick={() => setStep(1)} className="text-slate-400 text-xs font-bold hover:text-slate-800 flex items-center gap-1 group">이전 단계</button>
                  <div className="flex gap-2">
                     <button type="button" onClick={handleRemotePayment} className="px-5 py-3 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-2xl hover:bg-slate-50 transition-all">{isLoadingLink ? <Loader2 size={16} className="animate-spin" /> : <LinkIcon size={16} />}</button>
-                    <button type="submit" className={`px-10 py-3 text-xs font-black rounded-2xl transition-all shadow-2xl ${isBalanced ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>전산 최종 등록 완료</button>
+                    <button type="submit" className={`px-10 py-3 text-xs font-black rounded-2xl transition-all shadow-2xl ${isBalanced ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>{member ? '정보 수정 완료' : '전산 최종 등록 완료'}</button>
                  </div>
                </>
              )}

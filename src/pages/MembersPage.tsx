@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Phone, Activity, Target, CreditCard, CalendarDays, MoreHorizontal, Dumbbell, User, UserCircle, Pencil, FileText, ChevronRight, ChevronDown, AlertCircle, Box } from 'lucide-react';
+import { Search, Plus, Phone, Activity, Target, CreditCard, CalendarDays, MoreHorizontal, Dumbbell, User, UserCircle, Pencil, FileText, ChevronRight, ChevronDown, AlertCircle, Box, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import RegistrationModalP from '../components/members/RegistrationModalP';
 import { MOCK_STAFF } from '../lib/staffData';
 import { useAppStore, Member } from '../store';
-import { useMembers, useUpdateMember, useCreateMember } from '../api/queries/useMembers';
+import { useMembers, useUpdateMember, useCreateMember, useDeleteMember } from '../api/queries/useMembers';
 import { Loader2 } from 'lucide-react';
 
 const StatusBadge = ({ status }: { status: string }) => {
@@ -41,6 +41,7 @@ export default function MembersPage() {
   const members: Member[] = membersResponse?.data || [];
   const updateMemberMutation = useUpdateMember();
   const createMemberMutation = useCreateMember();
+  const deleteMemberMutation = useDeleteMember();
   const staff = useAppStore(state => state.staff);
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -56,7 +57,7 @@ export default function MembersPage() {
 
   // Registration Modal State (Using finalized P-Type)
   const [isModalPOpen, setIsModalPOpen] = useState(false);
-  const [modalPMode, setModalPMode] = useState<{ step: number; name?: string }>({ step: 1 });
+  const [modalPMode, setModalPMode] = useState<{ step: number; member?: any }>({ step: 1 });
 
   const filteredMembers = members.filter(m => 
     m.name.includes(searchTerm) || m.phone.includes(searchTerm)
@@ -101,7 +102,7 @@ export default function MembersPage() {
               {/* Primary New Registration Button */}
               <button 
                 onClick={() => {
-                  setModalPMode({ step: 1 });
+                  setModalPMode({ step: 1, member: null });
                   setIsModalPOpen(true);
                 }}
                 className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white text-sm font-black rounded-xl shadow-lg shadow-slate-200 hover:bg-slate-800 hover:-translate-y-0.5 transition-all active:scale-95 shrink-0"
@@ -171,7 +172,7 @@ export default function MembersPage() {
                   <td className="px-5 py-3.5 text-[13px] text-slate-600 font-medium">{member.phone}</td>
                   <td className="px-5 py-3.5 text-[13px] text-slate-500">{member.registrationDate}</td>
                   <td className="px-5 py-3.5">
-                    {member.recentPurchase.includes('회') ? (() => {
+                    {member.recentPurchase?.includes('회') ? (() => {
                       const total = parseInt(member.recentPurchase.match(/(\d+)회/)?.[1] || '0', 10);
                       const used = total - member.remainingSessions;
                       const percent = total > 0 ? Math.round((used / total) * 100) : 0;
@@ -244,13 +245,29 @@ export default function MembersPage() {
                 </div>
                 <button 
                   onClick={() => {
-                    setModalPMode({ step: 1, name: selectedMember.name });
+                    setModalPMode({ step: 1, member: selectedMember });
                     setIsModalPOpen(true);
                   }}
                   className="text-slate-400 hover:text-indigo-600 transition-colors p-1 group/edit"
                   title="정보 수정"
                 >
                   <Pencil size={18} className="group-hover/edit:scale-110 transition-transform" />
+                </button>
+                <button 
+                  onClick={() => {
+                    if (window.confirm(`${selectedMember.name} 회원을 삭제하시겠습니까?`)) {
+                      deleteMemberMutation.mutate(selectedMember.id, {
+                        onSuccess: () => {
+                          alert('삭제되었습니다.');
+                          setSelectedMember(null);
+                        }
+                      });
+                    }
+                  }}
+                  className="text-slate-400 hover:text-rose-600 transition-colors p-1 group/delete"
+                  title="회원 삭제"
+                >
+                  <Trash2 size={18} className="group-hover/delete:scale-110 transition-transform" />
                 </button>
               </div>
 
@@ -261,7 +278,7 @@ export default function MembersPage() {
                 </button>
                 <button 
                   onClick={() => {
-                    setModalPMode({ step: 2, name: selectedMember.name });
+                    setModalPMode({ step: 2, member: selectedMember });
                     setIsModalPOpen(true);
                   }}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-200"
@@ -530,15 +547,40 @@ export default function MembersPage() {
       isOpen={isModalPOpen} 
       onClose={() => setIsModalPOpen(false)} 
       initialStep={modalPMode.step}
-      initialMemberName={modalPMode.name}
-      onSaveMember={(newMember) => {
-        createMemberMutation.mutate(newMember, {
+      member={modalPMode.member}
+      onSaveMember={(memberData, isEdit) => {
+        if (isEdit && modalPMode.member?.id) {
+          updateMemberMutation.mutate({ id: modalPMode.member.id, data: memberData }, {
+            onSuccess: () => {
+              alert('성공적으로 수정되었습니다!');
+              setIsModalPOpen(false);
+              // 선택된 회원 정보 업데이트
+              if (selectedMember?.id === modalPMode.member.id) {
+                setSelectedMember({ ...selectedMember, ...memberData });
+              }
+            },
+            onError: (err: any) => {
+              alert(`수정 실패: ${err.message || '알 수 없는 오류가 발생했습니다.'}`);
+            }
+          });
+        } else {
+          createMemberMutation.mutate(memberData, {
+            onSuccess: () => {
+              alert('성공적으로 등록되었습니다!');
+              setIsModalPOpen(false);
+            },
+            onError: (err: any) => {
+              alert(`등록 실패: ${err.message || '알 수 없는 오류가 발생했습니다.'}`);
+            }
+          });
+        }
+      }}
+      onDeleteMember={(id) => {
+        deleteMemberMutation.mutate(id, {
           onSuccess: () => {
-            alert('성공적으로 등록되었습니다!');
+            alert('삭제되었습니다.');
             setIsModalPOpen(false);
-          },
-          onError: (err: any) => {
-            alert(`등록 실패: ${err.message || '알 수 없는 오류가 발생했습니다.'}`);
+            if (selectedMember?.id === id) setSelectedMember(null);
           }
         });
       }}

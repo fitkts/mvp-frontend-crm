@@ -7,7 +7,14 @@ export const membersService = {
     const skip = (Number(page) - 1) * Number(limit);
     
     const where: any = {};
-    if (status) where.status = status;
+    
+    // Default filter: hide EXPIRED (deleted) members unless specifically requested
+    if (status) {
+      where.status = status;
+    } else {
+      where.status = { not: 'EXPIRED' };
+    }
+
     if (trainerId) where.assignedTrainerId = Number(trainerId);
     if (search) {
       where.OR = [

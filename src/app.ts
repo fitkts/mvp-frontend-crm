@@ -16,7 +16,10 @@ export function buildApp() {
 
   // Register CORS
   app.register(cors, {
-    origin: true // Allow all origins for dev, restrict in prod
+    origin: true, // Allow all origins for dev, restrict in prod
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
   });
 
   // Standardized Error Handler

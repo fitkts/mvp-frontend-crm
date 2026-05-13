@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Plus, Phone, Activity, Briefcase, CreditCard, CalendarDays, MoreHorizontal, Users, User, UserCircle, Settings2, FileText, ChevronRight, Award, Clock, DollarSign, Mail, Dumbbell, Sparkles, Calendar, Calculator, CheckCircle2, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -6,8 +6,9 @@ import RegistrationModalStaff from '../components/members/RegistrationModalStaff
 import AssignedMembersModal from '../components/staff/AssignedMembersModal';
 import PayrollModalStaff from '../components/staff/PayrollModalStaff';
 import MonthlyClassProgressModal from '../components/staff/MonthlyClassProgressModal';
-import { useAppStore } from '../store';
-import { useStaffList, useCreateStaff } from '../api/queries/useStaff';
+
+import { useStaffList, useCreateStaff, useStaffDetail } from '../api/queries/useStaff';
+import { useMembers } from '../api/queries/useMembers';
 
 const RoleBadge = ({ role }: { role: string }) => {
   switch (role) {
@@ -58,10 +59,21 @@ const calculateTenure = (joinDate: string) => {
 };
 
 export default function StaffPage() {
+  const [selectedStaff, setSelectedStaff] = useState<any>(null);
   const { data: staffData, isLoading } = useStaffList();
   const staffList = staffData?.data || [];
   const createStaffMutation = useCreateStaff();
-  const [selectedStaff, setSelectedStaff] = useState<any>(staffList[0]);
+  
+  // W-2: selectedStaff의 상세 정보 (담당 회원 포함) 가져오기
+  const staffDetailId = selectedStaff?.id;
+
+  // C-4 fix: staffList 로드 완료 시 첫 번째 직원 자동 선택
+  useEffect(() => {
+    if (staffList.length > 0 && !selectedStaff) {
+      setSelectedStaff(staffList[0]);
+    }
+  }, [staffList]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -161,7 +173,7 @@ export default function StaffPage() {
                   </td>
                   <td className="px-5 py-3.5 text-[13px] text-slate-500">{staff.joinDate}</td>
                   <td className="px-5 py-3.5 text-right font-bold text-slate-700 text-[13px] tabular-nums">
-                    {(staff.revenue / 10000).toLocaleString()}만원
+                    {((staff.revenue || 0) / 10000).toLocaleString()}만원
                   </td>
                   <td className="px-5 py-3.5 text-center">
                     <StatusBadge status={staff.status} />
@@ -264,7 +276,7 @@ export default function StaffPage() {
                         <ChevronRight size={12} className="text-slate-300 group-hover:text-indigo-400 transition-all group-hover:translate-x-0.5" />
                       </div>
                       <div>
-                        <div className="text-[14px] font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{(selectedStaff.revenue / 10000).toLocaleString()}만원</div>
+                        <div className="text-[14px] font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{((selectedStaff.revenue || 0) / 10000).toLocaleString()}만원</div>
                         <div className="flex w-full h-1.5 bg-slate-100 rounded-full mt-2 mb-1.5 overflow-hidden">
                            <div className="h-full bg-indigo-500 rounded-full" style={{width: `80%`}}></div>
                         </div>
@@ -281,7 +293,7 @@ export default function StaffPage() {
                         <ChevronRight size={12} className="text-slate-300 group-hover:text-emerald-400 transition-all group-hover:translate-x-0.5" />
                       </div>
                       <div>
-                        <div className="text-[14px] font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">{selectedStaff.assignedMembers}명</div>
+                        <div className="text-[14px] font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">{selectedStaff.assignedMembers ?? 0}명</div>
                         <div className="text-[11px] text-slate-400 mt-1">지난 달 대비 +3 관리중</div>
                       </div>
                     </div>
@@ -293,7 +305,7 @@ export default function StaffPage() {
                     >
                       <div className="text-[11px] font-bold text-slate-500 flex items-center justify-center mb-2 gap-1.5 group-hover:text-orange-500 transition-colors"><Dumbbell size={14} className="text-slate-400 group-hover:text-orange-400"/> 이번 달 누적 수업수</div>
                       <div className="text-[13px] font-bold text-slate-900 mt-1 flex items-center justify-between group-hover:text-orange-600">
-                         {selectedStaff.workHours} 회
+                         {selectedStaff.workHours ?? 0} 회
                          <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">비율 달성</span>
                       </div>
                     </div>
@@ -475,84 +487,7 @@ export default function StaffPage() {
               )}
 
               {activeTab === 'members' && (
-                <div className="flex flex-col gap-4">
-                  {/* Member Table */}
-                  <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm flex flex-col">
-                    <div className="px-4 py-3 border-b border-slate-50 flex items-center justify-between bg-white">
-                      <h3 className="text-[12px] font-bold text-slate-900 flex items-center gap-1.5">
-                        <Users size={14} className="text-slate-400" /> 담당 회원 목록
-                      </h3>
-                      <button className="text-[10px] text-slate-500 px-2 py-1 bg-slate-50 rounded border border-slate-200 hover:bg-slate-100 font-medium transition-colors cursor-pointer">전체 다운로드</button>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-[12px] border-collapse">
-                         <thead className="bg-slate-50/50 border-b border-slate-100">
-                            <tr>
-                               <th className="px-4 py-2.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">회원정보</th>
-                               <th className="px-4 py-2.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">연락처</th>
-                               <th className="px-4 py-2.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">수강 상품</th>
-                               <th className="px-4 py-2.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">진행 현황</th>
-                               <th className="px-4 py-2.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center">상태</th>
-                            </tr>
-                         </thead>
-                         <tbody className="divide-y divide-slate-100">
-                            {[
-                              { id: 1, name: '강민준', gender: '남', phone: '010-1234-5678', product: 'PT 프리미엄 20회', totalSessions: 20, usedSessions: 12, status: 'ACTIVE' },
-                              { id: 2, name: '박서연', gender: '여', phone: '010-2345-6789', product: 'PT 스탠다드 10회', totalSessions: 10, usedSessions: 8, status: 'ACTIVE' },
-                              { id: 3, name: '이준호', gender: '남', phone: '010-3456-7890', product: 'PT 프리미엄 30회', totalSessions: 30, usedSessions: 5, status: 'ACTIVE' },
-                              { id: 4, name: '최지우', gender: '여', phone: '010-4567-8901', product: '바디프로필 패키지', totalSessions: 24, usedSessions: 22, status: 'ACTIVE' },
-                              { id: 5, name: '정우성', gender: '남', phone: '010-5678-9012', product: 'PT 기초 8회', totalSessions: 8, usedSessions: 8, status: 'EXPIRED' },
-                            ].map(member => {
-                               const percent = Math.round((member.usedSessions / member.totalSessions) * 100);
-                               const isActive = member.status === 'ACTIVE';
-                               return (
-                                 <tr key={member.id} className="hover:bg-slate-50/50 transition-colors group cursor-pointer text-[12px]">
-                                    <td className="px-4 py-3">
-                                       <div className="flex items-center gap-2">
-                                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0 border border-slate-200">
-                                            <User size={14} />
-                                          </div>
-                                          <div>
-                                             <div className="font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">{member.name}</div>
-                                             <div className="text-[10px] text-slate-500">{member.gender}</div>
-                                          </div>
-                                       </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                       <div className="flex items-center gap-1.5 text-slate-600 font-mono">
-                                          <Phone size={12} className="text-slate-400" /> {member.phone}
-                                       </div>
-                                    </td>
-                                    <td className="px-4 py-3 font-medium text-slate-800">
-                                       {member.product}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                       <div className="flex flex-col gap-1.5">
-                                          <div className="flex items-center justify-between text-[11px]">
-                                             <span className="font-bold text-slate-900">{member.usedSessions} / {member.totalSessions}회</span>
-                                             <span className="text-emerald-600 font-black">{percent}%</span>
-                                          </div>
-                                          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                             <div 
-                                                className={`h-full rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-300'}`} 
-                                                style={{ width: `${percent}%` }}
-                                             />
-                                          </div>
-                                       </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-center">
-                                       <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border ${isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
-                                          {isActive ? '진행중' : '종료'}
-                                       </span>
-                                    </td>
-                                 </tr>
-                               );
-                            })}
-                         </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
+                <MembersTabContent staffId={selectedStaff?.id} />
               )}
 
               {activeTab === 'performance' && (
@@ -566,20 +501,20 @@ export default function StaffPage() {
                         <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 group hover:border-emerald-200 transition-colors">
                            <div className="text-[10px] font-bold text-slate-500 mb-1">현재 매출 달성</div>
                            <div className="text-lg font-black text-slate-900 tabular-nums">
-                              {(selectedStaff.revenue / 10000).toLocaleString()}<span className="text-[11px] font-medium text-slate-500 ml-0.5">만원</span>
+                              {((selectedStaff.revenue || 0) / 10000).toLocaleString()}<span className="text-[11px] font-medium text-slate-500 ml-0.5">만원</span>
                            </div>
                            <div className="mt-2 w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
                               <div className="h-full bg-emerald-500 rounded-full" style={{width: `80%`}} />
                            </div>
                            <div className="mt-1.5 flex justify-between text-[10px] font-bold">
                               <span className="text-emerald-600">80% 달성</span>
-                              <span className="text-slate-400">목표 {(selectedStaff.revenue / 10000 / 0.8).toLocaleString()}만원</span>
+                              <span className="text-slate-400">목표 {((selectedStaff.revenue || 0) / 10000 / 0.8).toLocaleString()}만원</span>
                            </div>
                         </div>
                         <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 group hover:border-indigo-200 transition-colors">
                            <div className="text-[10px] font-bold text-slate-500 mb-1">현재 진행 수업</div>
                            <div className="text-lg font-black text-slate-900 tabular-nums">
-                              {selectedStaff.workHours}<span className="text-[11px] font-medium text-slate-500 ml-0.5">회</span>
+                              {selectedStaff.workHours ?? 0}<span className="text-[11px] font-medium text-slate-500 ml-0.5">회</span>
                            </div>
                            <div className="mt-2 w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
                               <div className="h-full bg-indigo-500 rounded-full" style={{width: `95%`}} />
@@ -677,7 +612,8 @@ export default function StaffPage() {
       <AssignedMembersModal 
         isOpen={isAssignedModalOpen} 
         onClose={() => setIsAssignedModalOpen(false)} 
-        staffName={selectedStaff?.name || ''} 
+        staffName={selectedStaff?.name || ''}
+        staffId={selectedStaff?.id}
       />
       <PayrollModalStaff 
         isOpen={isPayrollModalOpen}
@@ -689,6 +625,79 @@ export default function StaffPage() {
         onClose={() => setIsClassLogModalOpen(false)}
         staffName={selectedStaff?.name || ''}
       />
+    </div>
+  );
+}
+
+function MembersTabContent({ staffId }: { staffId?: number }) {
+  const { data: membersData, isLoading } = useMembers({ staffId });
+  const members = membersData?.data || [];
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-400">
+        <Loader2 className="animate-spin text-emerald-500" size={24} />
+        <p className="text-xs font-medium">회원 목록을 불러오는 중...</p>
+      </div>
+    );
+  }
+
+  if (members.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-4 bg-white rounded-2xl border border-slate-100 border-dashed">
+        <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
+          <Users size={24} />
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-bold text-slate-900">담당 회원이 없습니다</p>
+          <p className="text-xs text-slate-400 mt-1">이 직원이 관리하는 회원이 여기에 표시됩니다.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {members.map((member: any) => (
+        <div 
+          key={member.id} 
+          className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:border-emerald-200 transition-all group"
+        >
+          <div className="flex justify-between items-center mb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold border border-slate-200 group-hover:bg-emerald-50 group-hover:text-emerald-600 group-hover:border-emerald-100 transition-colors">
+                {member.name[0]}
+              </div>
+              <div>
+                <div className="text-sm font-bold text-slate-900">{member.name}</div>
+                <div className="text-[10px] text-slate-400 font-medium">{member.phone}</div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs font-bold text-slate-700">{member.product}</div>
+              <div className="text-[10px] text-slate-400 mt-0.5">잔여 {member.totalSessions - member.usedSessions}회 / {member.totalSessions}회</div>
+            </div>
+          </div>
+          
+          <div className="w-full h-1 bg-slate-50 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-emerald-500 rounded-full" 
+              style={{ width: `${(member.usedSessions / member.totalSessions) * 100}%` }}
+            />
+          </div>
+          
+          <div className="mt-3 flex items-center justify-between text-[10px]">
+            <div className="flex items-center gap-1.5 text-slate-500">
+              <Calendar size={12} className="text-slate-300" />
+              최근 방문: {member.lastVisit || '-'}
+            </div>
+            <div className="flex items-center gap-1.5 text-indigo-600 font-bold">
+              <Activity size={12} className="text-indigo-400" />
+              다음 수업: {member.nextSession || '-'}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

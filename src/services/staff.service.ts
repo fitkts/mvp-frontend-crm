@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
 
 // Zod schema for input validation
 const CreateStaffSchema = z.object({
