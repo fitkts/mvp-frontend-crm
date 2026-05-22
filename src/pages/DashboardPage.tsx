@@ -2,54 +2,54 @@ import { Users, CreditCard, Calendar, TrendingUp, ArrowUpRight, ArrowDownRight, 
 import { motion } from 'motion/react';
 import { useAppStore } from '../store';
 import { useMembers } from '../api/queries/useMembers';
-
-const RECENT_ACTIVITIES = [
-  { id: 1, type: 'payment', user: '강민준', detail: 'PT 20회 결제 완료', time: '10분 전', amount: '+₩900,000' },
-  { id: 2, type: 'registration', user: '김지은', detail: '신규 회원 등록', time: '45분 전' },
-  { id: 3, type: 'visit', user: '이도현', detail: '센터 입장', time: '1시간 전' },
-  { id: 4, type: 'booking', user: '박서연', detail: '내일 오후 2시 PT 예약', time: '2시간 전' },
-];
+import { useDashboardStats, useDashboardTrends, useRecentActivities } from '../api/queries/useDashboard';
 
 export default function DashboardPage() {
   const { data: membersResponse } = useMembers();
   const members = membersResponse?.data || [];
 
+  const { data: statsResponse } = useDashboardStats();
+  const statsData = statsResponse?.data;
+
+  const { data: activitiesResponse } = useRecentActivities();
+  const recentActivities = activitiesResponse?.data || [];
+
   const STATS = [
     { 
       label: '전체 회원', 
       value: members.length.toLocaleString(), 
-      change: '+12%', 
-      isPositive: true, 
+      change: statsData?.membersChange || '+0%', 
+      isPositive: !(statsData?.membersChange || '').startsWith('-'), 
       icon: Users, 
       color: 'bg-emerald-50 text-emerald-600',
-      description: '지난 달 대비 142명 증가'
+      description: `지난 달 대비 ${statsData?.membersCountChange || 0}명 증가`
     },
     { 
       label: '이번 달 매출', 
-      value: '₩42.8M', 
-      change: '+8.2%', 
-      isPositive: true, 
+      value: statsData?.monthlyRevenue ? `₩${(statsData.monthlyRevenue / 1000000).toFixed(1)}M` : '₩0M', 
+      change: statsData?.revenueChange || '+0%', 
+      isPositive: !(statsData?.revenueChange || '').startsWith('-'), 
       icon: CreditCard, 
       color: 'bg-blue-50 text-blue-600',
-      description: '목표 매출의 85% 달성'
+      description: `목표 매출의 ${statsData?.revenueTargetPercent || 0}% 달성`
     },
     { 
       label: '오늘 예약', 
-      value: '24', 
-      change: '-2', 
-      isPositive: false, 
+      value: (statsData?.todayReservations || 0).toString(), 
+      change: statsData?.reservationsChange || '0', 
+      isPositive: !(statsData?.reservationsChange || '').startsWith('-'), 
       icon: Calendar, 
       color: 'bg-amber-50 text-amber-600',
-      description: '오전 12건 / 오후 12건'
+      description: `오전 ${statsData?.morningReservations || 0}건 / 오후 ${statsData?.afternoonReservations || 0}건`
     },
     { 
       label: '평균 출석률', 
-      value: '78%', 
-      change: '+4%', 
-      isPositive: true, 
+      value: `${statsData?.attendanceRate || 0}%`, 
+      change: statsData?.attendanceChange || '+0%', 
+      isPositive: !(statsData?.attendanceChange || '').startsWith('-'), 
       icon: Activity, 
       color: 'bg-rose-50 text-rose-600',
-      description: '피크 타임: 19:00 - 21:00'
+      description: `피크 타임: ${statsData?.peakTime || '19:00 - 21:00'}`
     },
   ];
 
@@ -181,7 +181,7 @@ export default function DashboardPage() {
               최근 활동
             </h2>
             <div className="space-y-6">
-              {RECENT_ACTIVITIES.map((activity, index) => (
+              {recentActivities.map((activity: any, index: number) => (
                 <motion.div 
                   key={activity.id}
                   initial={{ opacity: 0, x: 20 }}
@@ -189,7 +189,7 @@ export default function DashboardPage() {
                   transition={{ delay: 0.8 + index * 0.1 }}
                   className="flex gap-4 relative"
                 >
-                  {index !== RECENT_ACTIVITIES.length - 1 && (
+                  {index !== recentActivities.length - 1 && (
                     <div className="absolute left-5 top-10 bottom-[-24px] w-px bg-slate-100" />
                   )}
                   <div className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center z-10 ${

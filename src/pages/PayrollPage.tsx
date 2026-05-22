@@ -2,29 +2,73 @@ import { useState } from 'react';
 import { DollarSign, TrendingUp, Users, CreditCard, Calendar, Download, ArrowUpRight, ArrowDownRight, PieChart as PieChartIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { useAppStore } from '../store';
 import { useMembers } from '../api/queries/useMembers';
-
-const MOCK_CHART_DATA = [
-  { name: '1월', revenue: 3200, payroll: 1500 },
-  { name: '2월', revenue: 3800, payroll: 1600 },
-  { name: '3월', revenue: 3500, payroll: 1550 },
-  { name: '4월', revenue: 4250, payroll: 1820 },
-];
+import { usePayrolls, useGeneratePayrolls, useUpdatePayrollStatus } from '../api/queries/usePayrolls';
+import { useDashboardTrends, useDashboardStats } from '../api/queries/useDashboard';
 
 export default function PayrollPage() {
-  const [period, setPeriod] = useState('2026-04');
-  const payrolls = useAppStore(state => state.payrolls);
+  const [period, setPeriod] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const { data: payrollsResponse } = usePayrolls({ period });
+  const payrolls = payrollsResponse?.data || [];
+  
+  const generatePayrollsMutation = useGeneratePayrolls();
+  const updatePayrollStatusMutation = useUpdatePayrollStatus();
+  
+  const { data: trendsResponse } = useDashboardTrends();
+  const trendsData = trendsResponse?.data || [];
+
+  const { data: statsResponse } = useDashboardStats();
+  const statsData = statsResponse?.data;
+
   const { data: membersResponse } = useMembers();
   const members = membersResponse?.data || [];
 
   const activeMembersCount = members.filter(m => m.status === 'ACTIVE').length;
 
+  const totalPayroll = payrolls.reduce((acc: number, p: any) => acc + (p.total || 0), 0);
+  const totalRevenue = statsData?.monthlyRevenue || 0;
+  const netProfit = totalRevenue - totalPayroll;
+
   const STATS = [
-    { label: '총 매출', value: '42,500,000', change: '+12.5%', isPositive: true, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: '총 급여 지출', value: '18,200,000', change: '+5.2%', isPositive: false, icon: CreditCard, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: '순이익', value: '24,300,000', change: '+18.3%', isPositive: true, icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50' },
-    { label: '활성 회원', value: activeMembersCount.toLocaleString(), change: '+4', isPositive: true, icon: Users, color: 'text-orange-600', bg: 'bg-orange-50' },
+    { 
+      label: '총 매출', 
+      value: totalRevenue.toLocaleString(), 
+      change: statsData?.revenueChange || '+0%', 
+      isPositive: !(statsData?.revenueChange || '').startsWith('-'), 
+      icon: DollarSign, 
+      color: 'text-emerald-600', 
+      bg: 'bg-emerald-50' 
+    },
+    { 
+      label: '총 급여 지출', 
+      value: totalPayroll.toLocaleString(), 
+      change: statsData?.payrollChange || '+0%', 
+      isPositive: (statsData?.payrollChange || '').startsWith('-'), // Decreasing payroll is usually positive for business
+      icon: CreditCard, 
+      color: 'text-blue-600', 
+      bg: 'bg-blue-50' 
+    },
+    { 
+      label: '순이익', 
+      value: netProfit.toLocaleString(), 
+      change: statsData?.profitChange || '+0%', 
+      isPositive: !(statsData?.profitChange || '').startsWith('-'), 
+      icon: TrendingUp, 
+      color: 'text-purple-600', 
+      bg: 'bg-purple-50' 
+    },
+    { 
+      label: '활성 회원', 
+      value: activeMembersCount.toLocaleString(), 
+      change: statsData?.membersChange || '+0', 
+      isPositive: !(statsData?.membersChange || '').startsWith('-'), 
+      icon: Users, 
+      color: 'text-orange-600', 
+      bg: 'bg-orange-50' 
+    },
   ];
 
   return (
@@ -105,7 +149,7 @@ export default function PayrollPage() {
           
           <div className="flex-1 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={MOCK_CHART_DATA}>
+              <AreaChart data={trendsData.length > 0 ? trendsData : []}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
@@ -169,15 +213,40 @@ export default function PayrollPage() {
                 </div>
 
                 {staff.status === 'PENDING' && (
-                  <button className="w-full mt-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all">
+                  <button 
+                    onClick={() => {
+                      updatePayrollStatusMutation.mutate({ id: staff.id, status: 'PAID' }, {
+                        onSuccess: () => {
+                          alert(`${staff.name} 트레이너의 급여 지급 처리가 완료되었습니다.`);
+                        }
+                      });
+                    }}
+                    disabled={updatePayrollStatusMutation.isPending}
+                    className="w-full mt-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all disabled:opacity-50"
+                  >
                     급여 지급하기
                   </button>
                 )}
               </div>
             ))}
           </div>
-          <button className="mt-6 w-full py-3 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100">
-            전체 급여 정산
+          <button 
+            onClick={() => {
+              if (window.confirm(`${period} 귀속 전체 직원의 급여를 정산하시겠습니까? (이전 정산 내역은 초기화되며 실제 매출 데이터를 기반으로 재계산됩니다.)`)) {
+                generatePayrollsMutation.mutate(period, {
+                  onSuccess: () => {
+                    alert(`${period} 귀속 전체 직원의 급여 정산이 완료되었습니다!`);
+                  },
+                  onError: (err: any) => {
+                    alert(`정산 실패: ${err.message || '오류가 발생했습니다.'}`);
+                  }
+                });
+              }
+            }}
+            disabled={generatePayrollsMutation.isPending}
+            className="mt-6 w-full py-3 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {generatePayrollsMutation.isPending ? '정산 처리 중...' : '전체 급여 정산'}
           </button>
         </div>
       </div>

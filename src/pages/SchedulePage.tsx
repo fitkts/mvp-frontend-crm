@@ -2,19 +2,13 @@ import { useState } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, User, MapPin, Filter, Search, MoreHorizontal } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-// 더미 데이터
-const MOCK_EVENTS = [
-  { id: 1, title: 'PT: 강민준', time: '09:00', duration: '50분', trainer: '이코치', type: 'PT', color: 'bg-emerald-500' },
-  { id: 2, title: '그룹 필라테스', time: '10:00', duration: '50분', trainer: '김필라', type: 'GROUP', color: 'bg-purple-500' },
-  { id: 3, title: 'PT: 박서연', time: '11:00', duration: '50분', trainer: '이코치', type: 'PT', color: 'bg-emerald-500' },
-  { id: 4, title: '요가 클래스', time: '14:00', duration: '60분', trainer: '최요가', type: 'GROUP', color: 'bg-blue-500' },
-  { id: 5, title: 'PT: 이도현', time: '16:00', duration: '50분', trainer: '박트레이너', type: 'PT', color: 'bg-emerald-500' },
-  { id: 6, title: '바디펌프', time: '19:00', duration: '50분', trainer: '정코치', type: 'GROUP', color: 'bg-orange-500' },
-];
+import { useEvents } from '../api/queries/useEvents';
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
 export default function SchedulePage() {
+  const { data: eventsResponse } = useEvents();
+  const events = eventsResponse?.data || [];
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'week' | 'day'>('month');
@@ -156,12 +150,12 @@ export default function SchedulePage() {
               <h3 className="text-xl font-display font-bold text-slate-900">
                 {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일 일정
               </h3>
-              <p className="text-sm text-slate-500 font-medium">총 {MOCK_EVENTS.length}개의 일정이 있습니다.</p>
+              <p className="text-sm text-slate-500 font-medium">총 {events.length}개의 일정이 있습니다.</p>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
               <AnimatePresence mode="popLayout">
-                {MOCK_EVENTS.map((event, i) => (
+                {events.map((event: any, i: number) => (
                   <motion.div
                     key={event.id}
                     initial={{ opacity: 0, x: 20 }}

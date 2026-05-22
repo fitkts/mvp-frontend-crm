@@ -60,7 +60,7 @@ export default function Header() {
   const hasResults = searchQuery.length > 0 && (filteredData.members.length > 0 || filteredData.products.length > 0 || filteredData.schedules.length > 0);
 
   return (
-    <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-8 fixed top-0 left-56 right-0 z-40">
+    <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-8 fixed top-0 left-44 right-0 z-40">
       <div className="flex items-center gap-6">
         <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">{title}</h2>
         
